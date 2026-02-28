@@ -1,15 +1,12 @@
-// Mock data for demo — replaces Firebase for local development
-// When Firebase is configured, import from firebase.js instead
+// Mock data for Dipesh Tutorials Demo
+// ~200 students across 8th to 12th standards
 
-// ─── Students (450+ across 5th-12th) ─────────────────────────
+// ─── Standards & Subjects ─────────────────────────
 export const STANDARDS = [
-    '5th', '6th', '7th', '8th', '9th', '10th', '11th Commerce', '12th Commerce', '11th Science', '12th Science'
+    '8th', '9th', '10th', '11th Commerce', '12th Commerce', '11th Science', '12th Science'
 ];
 
 export const SUBJECTS_BY_STANDARD = {
-    '5th': ['Mathematics', 'Science', 'English', 'Hindi', 'Marathi', 'Social Studies'],
-    '6th': ['Mathematics', 'Science', 'English', 'Hindi', 'Marathi', 'Social Studies'],
-    '7th': ['Mathematics', 'Science', 'English', 'Hindi', 'Marathi', 'Social Studies'],
     '8th': ['Mathematics', 'Science', 'English', 'Hindi', 'Marathi', 'Social Studies'],
     '9th': ['Mathematics', 'Science', 'English', 'Hindi', 'Marathi', 'Social Studies'],
     '10th': ['Mathematics', 'Science', 'English', 'Hindi', 'Marathi', 'Social Studies'],
@@ -19,49 +16,124 @@ export const SUBJECTS_BY_STANDARD = {
     '12th Science': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'English'],
 };
 
-const firstNames = ['Aarav', 'Aditi', 'Arjun', 'Ananya', 'Dhruv', 'Divya', 'Eshan', 'Gauri', 'Harsh', 'Ishita', 'Jay', 'Kavya', 'Krish', 'Lavanya', 'Manav', 'Neha', 'Om', 'Pooja', 'Rahul', 'Riya', 'Sai', 'Shreya', 'Tanmay', 'Urvi', 'Varun', 'Vidhi', 'Yash', 'Zara', 'Aditya', 'Bhavna', 'Chirag', 'Diya', 'Farhan', 'Gita', 'Hemant', 'Isha', 'Jai', 'Komal', 'Laksh', 'Meera', 'Nikhil', 'Pallavi', 'Rohit', 'Sakshi', 'Tushar', 'Uma', 'Vikram', 'Yamini', 'Akash', 'Priya'];
-const lastNames = ['Sharma', 'Patel', 'Desai', 'Joshi', 'Gupta', 'Singh', 'Mehta', 'Shah', 'More', 'Patil', 'Kulkarni', 'Verma', 'Nair', 'Reddy', 'Kumar', 'Chauhan', 'Rane', 'Sawant', 'Bhosale', 'Jadhav'];
+// ─── Name pools for realistic Indian names ─────────────────────────
+const firstNamesMale = ['Aarav', 'Arjun', 'Dhruv', 'Eshan', 'Harsh', 'Jay', 'Krish', 'Manav', 'Om', 'Rahul', 'Sai', 'Tanmay', 'Varun', 'Yash', 'Aditya', 'Chirag', 'Farhan', 'Hemant', 'Jai', 'Laksh', 'Nikhil', 'Rohit', 'Tushar', 'Vikram', 'Akash', 'Rohan', 'Sahil', 'Karan', 'Dev', 'Pranav', 'Shubham', 'Vishal', 'Amit', 'Ankit', 'Gaurav'];
+const firstNamesFemale = ['Aditi', 'Ananya', 'Divya', 'Gauri', 'Ishita', 'Kavya', 'Lavanya', 'Neha', 'Pooja', 'Riya', 'Shreya', 'Urvi', 'Vidhi', 'Zara', 'Bhavna', 'Diya', 'Gita', 'Isha', 'Komal', 'Meera', 'Pallavi', 'Sakshi', 'Uma', 'Yamini', 'Priya', 'Sneha', 'Tanvi', 'Aisha', 'Nisha', 'Swati', 'Megha', 'Simran', 'Kritika', 'Ankita', 'Payal'];
+const lastNames = ['Sharma', 'Patel', 'Desai', 'Joshi', 'Gupta', 'Singh', 'Mehta', 'Shah', 'More', 'Patil', 'Kulkarni', 'Verma', 'Nair', 'Reddy', 'Kumar', 'Chauhan', 'Rane', 'Sawant', 'Bhosale', 'Jadhav', 'Pawar', 'Thakur', 'Mishra', 'Yadav', 'Tiwari', 'Pandey', 'Shetty', 'Iyer', 'Menon', 'Pillai'];
+
+// Seeded random for consistent data
+function seededRandom(seed) {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+}
 
 function generateStudents() {
     const students = [];
     let id = 1;
-    const studentsPerStandard = { '5th': 45, '6th': 50, '7th': 48, '8th': 52, '9th': 55, '10th': 60, '11th Commerce': 35, '12th Commerce': 30, '11th Science': 40, '12th Science': 35 };
+    
+    // Distribution: ~200 students across 8th-12th
+    const studentsPerStandard = { 
+        '8th': 35,           // 35
+        '9th': 38,           // 38
+        '10th': 42,          // 42 (more for SSC)
+        '11th Commerce': 22, // 22
+        '12th Commerce': 20, // 20
+        '11th Science': 25,  // 25
+        '12th Science': 22   // 22
+        // Total: 204 students
+    };
 
     for (const std of STANDARDS) {
         const count = studentsPerStandard[std];
         for (let i = 0; i < count; i++) {
-            const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
-            const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
+            const seed = id * 31;
+            const isFemale = seededRandom(seed) > 0.5;
+            const fnPool = isFemale ? firstNamesFemale : firstNamesMale;
+            const fn = fnPool[Math.floor(seededRandom(seed + 1) * fnPool.length)];
+            const ln = lastNames[Math.floor(seededRandom(seed + 2) * lastNames.length)];
+            
+            const feeStatusRand = seededRandom(seed + 3);
+            const feeStatus = feeStatusRand > 0.65 ? 'paid' : feeStatusRand > 0.25 ? 'pending' : 'overdue';
+            const totalFees = std.includes('11th') || std.includes('12th') ? 35000 : 25000;
+            
+            let paidFees;
+            if (feeStatus === 'paid') paidFees = totalFees;
+            else if (feeStatus === 'pending') paidFees = Math.floor(totalFees * (0.3 + seededRandom(seed + 4) * 0.4));
+            else paidFees = 0;
+
+            const attendancePercent = Math.floor(65 + seededRandom(seed + 5) * 35);
+            
             students.push({
                 id: `STU${String(id).padStart(4, '0')}`,
                 name: `${fn} ${ln}`,
+                gender: isFemale ? 'Female' : 'Male',
                 standard: std,
                 rollNo: i + 1,
                 parentId: `PAR${String(id).padStart(4, '0')}`,
-                parentName: `Mr. ${lastNames[Math.floor(Math.random() * lastNames.length)]}`,
-                parentPhone: `+919${Math.floor(100000000 + Math.random() * 900000000)}`,
+                parentName: `${isFemale ? 'Mrs.' : 'Mr.'} ${lastNames[Math.floor(seededRandom(seed + 6) * lastNames.length)]}`,
+                parentPhone: `+919${Math.floor(100000000 + seededRandom(seed + 7) * 900000000)}`,
                 email: `${fn.toLowerCase()}.${ln.toLowerCase()}${id}@email.com`,
-                attendancePercent: Math.floor(70 + Math.random() * 30),
-                feeStatus: ['paid', 'pending', 'overdue'][Math.floor(Math.random() * 3)],
-                totalFees: std.includes('11th') || std.includes('12th') ? 35000 : 25000,
-                paidFees: 0,
+                dateOfBirth: generateDOB(std, seed + 8),
+                address: generateAddress(seed + 9),
+                attendancePercent,
+                feeStatus,
+                totalFees,
+                paidFees,
+                enrollmentDate: generateEnrollmentDate(seed + 10),
+                subjects: SUBJECTS_BY_STANDARD[std],
             });
-            students[students.length - 1].paidFees =
-                students[students.length - 1].feeStatus === 'paid' ? students[students.length - 1].totalFees :
-                    students[students.length - 1].feeStatus === 'pending' ? Math.floor(students[students.length - 1].totalFees * 0.5) : 0;
             id++;
         }
     }
     return students;
 }
 
+function generateDOB(standard, seed) {
+    const currentYear = 2026;
+    const ageByStandard = {
+        '8th': 13, '9th': 14, '10th': 15,
+        '11th Commerce': 16, '11th Science': 16,
+        '12th Commerce': 17, '12th Science': 17
+    };
+    const age = ageByStandard[standard] || 15;
+    const birthYear = currentYear - age - Math.floor(seededRandom(seed) * 2);
+    const month = Math.floor(1 + seededRandom(seed + 1) * 12);
+    const day = Math.floor(1 + seededRandom(seed + 2) * 28);
+    return `${birthYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function generateAddress(seed) {
+    const areas = ['Andheri', 'Bandra', 'Malad', 'Goregaon', 'Borivali', 'Kandivali', 'Dahisar', 'Jogeshwari', 'Vile Parle', 'Santacruz', 'Khar', 'Juhu', 'Versova', 'Lokhandwala'];
+    const area = areas[Math.floor(seededRandom(seed) * areas.length)];
+    const houseNo = Math.floor(1 + seededRandom(seed + 1) * 500);
+    return `${houseNo}, ${area}, Mumbai - 400${Math.floor(50 + seededRandom(seed + 2) * 50)}`;
+}
+
+function generateEnrollmentDate(seed) {
+    const year = seededRandom(seed) > 0.7 ? 2025 : 2024;
+    const month = year === 2025 ? Math.floor(1 + seededRandom(seed + 1) * 6) : Math.floor(6 + seededRandom(seed + 1) * 7);
+    const day = Math.floor(1 + seededRandom(seed + 2) * 28);
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 export const STUDENTS = generateStudents();
 export const TOTAL_STUDENTS = STUDENTS.length;
+
+// ─── Summary by Standard ─────────────────────────
+export const STUDENTS_BY_STANDARD = STANDARDS.reduce((acc, std) => {
+    acc[std] = STUDENTS.filter(s => s.standard === std);
+    return acc;
+}, {});
+
+export const STUDENT_COUNTS = STANDARDS.reduce((acc, std) => {
+    acc[std] = STUDENTS.filter(s => s.standard === std).length;
+    return acc;
+}, {});
 
 // ─── Users (login credentials) ─────────────────────────
 export const DEMO_USERS = {
     'parent@demo.com': { password: 'parent123', role: 'parent', name: 'Mr. Rakesh Sharma', childId: 'STU0001' },
-    'student@demo.com': { password: 'student123', role: 'student', name: 'Aarav Sharma', studentId: 'STU0001', standard: '5th' },
+    'student@demo.com': { password: 'student123', role: 'student', name: 'Aditi Sharma', studentId: 'STU0001', standard: '8th' },
     'admin@demo.com': { password: 'admin123', role: 'admin', name: 'Sunita Deshmukh', designation: 'Admin Staff' },
     'superadmin@demo.com': { password: 'super123', role: 'superadmin', name: 'Dipesh Sir', designation: 'Director' },
 };
@@ -69,22 +141,41 @@ export const DEMO_USERS = {
 // ─── Attendance Records ─────────────────────────
 function generateAttendance() {
     const records = [];
-    const now = new Date();
+    const now = new Date(2026, 1, 28); // Feb 28, 2026
+    
     for (let d = 30; d >= 0; d--) {
         const date = new Date(now);
         date.setDate(date.getDate() - d);
         if (date.getDay() === 0) continue; // Skip Sundays
 
-        for (const student of STUDENTS.slice(0, 50)) { // First 50 for perf
-            const rand = Math.random();
+        // Generate for all students
+        for (const student of STUDENTS) {
+            const seed = student.id.charCodeAt(4) * 100 + d;
+            const rand = seededRandom(seed);
+            
+            let status, arrivalTime = null;
+            if (rand > 0.12) {
+                status = 'present';
+                const hour = 8 + Math.floor(seededRandom(seed + 1) * 2);
+                const minute = Math.floor(seededRandom(seed + 2) * 60);
+                arrivalTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            } else if (rand > 0.04) {
+                status = 'late';
+                const hour = 9 + Math.floor(seededRandom(seed + 1));
+                const minute = Math.floor(seededRandom(seed + 2) * 30);
+                arrivalTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            } else {
+                status = 'absent';
+            }
+            
             records.push({
                 studentId: student.id,
                 studentName: student.name,
                 standard: student.standard,
                 date: date.toISOString().split('T')[0],
-                status: rand > 0.15 ? 'present' : rand > 0.05 ? 'late' : 'absent',
-                arrivalTime: rand > 0.15 ? `${8 + Math.floor(Math.random() * 2)}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}` : null,
-                method: rand > 0.5 ? 'face_detection' : 'manual',
+                status,
+                arrivalTime,
+                method: seededRandom(seed + 3) > 0.4 ? 'face_detection' : 'manual',
             });
         }
     }
@@ -104,21 +195,26 @@ export const RESOURCES = [
     { id: 'R007', title: 'JEE Main 2025 Paper Analysis', type: 'video', standard: '12th Science', subject: 'Physics', uploadedBy: 'Dipesh Sir', uploadDate: '2026-02-04', size: '210 MB', tags: ['jee', 'paper analysis'], missedLecture: true, lectureDate: '2026-02-03' },
     { id: 'R008', title: 'Economics - Demand & Supply Notes', type: 'notes', standard: '11th Commerce', subject: 'Economics', uploadedBy: 'Sunita Deshmukh', uploadDate: '2026-02-03', size: '1.5 MB', tags: ['economics', 'micro'], missedLecture: false },
     { id: 'R009', title: 'NEET Biology MCQ Set - Genetics', type: 'mcq', standard: '12th Science', subject: 'Biology', uploadedBy: 'Dipesh Sir', uploadDate: '2026-02-02', questions: 75, tags: ['neet', 'genetics'], missedLecture: false },
-    { id: 'R010', title: 'Hindi Vyakaran - Revision PPT', type: 'ppt', standard: '7th', subject: 'Hindi', uploadedBy: 'Sunita Deshmukh', uploadDate: '2026-02-01', size: '5.2 MB', tags: ['hindi', 'grammar'], missedLecture: true, lectureDate: '2026-01-31' },
+    { id: 'R010', title: 'Hindi Vyakaran - Revision PPT', type: 'ppt', standard: '8th', subject: 'Hindi', uploadedBy: 'Sunita Deshmukh', uploadDate: '2026-02-01', size: '5.2 MB', tags: ['hindi', 'grammar'], missedLecture: true, lectureDate: '2026-01-31' },
     { id: 'R011', title: 'Organic Chemistry - Hydrocarbons', type: 'video', standard: '11th Science', subject: 'Chemistry', uploadedBy: 'Dipesh Sir', uploadDate: '2026-01-30', tags: ['organic'], missedLecture: true, lectureDate: '2026-01-29' },
     { id: 'R012', title: 'Marathi Nibandh Collection', type: 'notes', standard: '9th', subject: 'Marathi', uploadedBy: 'Sunita Deshmukh', uploadDate: '2026-01-28', size: '980 KB', tags: ['marathi', 'essay'], missedLecture: false },
+    { id: 'R013', title: 'SSC Board Previous Year Papers (Maths)', type: 'pdf', standard: '10th', subject: 'Mathematics', uploadedBy: 'Dipesh Sir', uploadDate: '2026-02-12', size: '15 MB', tags: ['ssc', 'board', 'practice'], missedLecture: false },
+    { id: 'R014', title: 'Partnership Accounts - Full Chapter', type: 'video', standard: '12th Commerce', subject: 'Accountancy', uploadedBy: 'Sunita Deshmukh', uploadDate: '2026-02-11', size: '180 MB', tags: ['partnership', 'accounts'], missedLecture: false },
+    { id: 'R015', title: 'Physics Numericals - Electricity', type: 'pdf', standard: '10th', subject: 'Science', uploadedBy: 'Dipesh Sir', uploadDate: '2026-02-13', size: '3.2 MB', tags: ['physics', 'electricity', 'numericals'], missedLecture: false },
 ];
 
 // ─── Notifications ─────────────────────────
 export const NOTIFICATIONS = [
     { id: 'N001', title: 'Fee Payment Reminder', message: 'Term 2 fees of ₹12,500 are due by Feb 20, 2026.', type: 'fee', time: '2 hours ago', read: false, for: ['parent'] },
     { id: 'N002', title: 'New Resource Uploaded', message: 'Algebra Fundamentals chapter notes have been uploaded for 9th Standard.', type: 'resource', time: '5 hours ago', read: false, for: ['student'] },
-    { id: 'N003', title: 'Attendance Alert', message: 'Your child Aarav was marked late today at 09:15 AM.', type: 'attendance', time: '1 day ago', read: true, for: ['parent'] },
+    { id: 'N003', title: 'Attendance Alert', message: 'Your child was marked late today at 09:15 AM.', type: 'attendance', time: '1 day ago', read: true, for: ['parent'] },
     { id: 'N004', title: 'MCQ Test Scheduled', message: 'Chemistry MCQ test for 11th Science scheduled for Feb 18.', type: 'exam', time: '1 day ago', read: false, for: ['student', 'parent'] },
     { id: 'N005', title: 'Holiday Notice', message: 'Tutorials will remain closed on Feb 19 (Shivaji Jayanti).', type: 'general', time: '2 days ago', read: true, for: ['parent', 'student', 'admin'] },
     { id: 'N006', title: 'Pending Payments Report', message: '32 students have outstanding fees for this term.', type: 'fee', time: '3 days ago', read: false, for: ['admin', 'superadmin'] },
-    { id: 'N007', title: 'New Enrollment', message: 'New student Priya Patil enrolled in 7th Standard batch.', type: 'general', time: '4 days ago', read: true, for: ['admin', 'superadmin'] },
+    { id: 'N007', title: 'New Enrollment', message: 'New student Priya Patil enrolled in 8th Standard batch.', type: 'general', time: '4 days ago', read: true, for: ['admin', 'superadmin'] },
     { id: 'N008', title: 'Monthly Report Ready', message: 'January 2026 attendance & financial report is ready for review.', type: 'report', time: '5 days ago', read: false, for: ['superadmin'] },
+    { id: 'N009', title: 'SSC Board Exam Schedule', message: '10th standard board exams start from March 1, 2026.', type: 'exam', time: '6 days ago', read: false, for: ['student', 'parent'] },
+    { id: 'N010', title: 'New Batch Starting', message: 'Special batch for JEE/NEET crash course starting March 5.', type: 'general', time: '1 week ago', read: true, for: ['student', 'parent'] },
 ];
 
 // ─── Financial Data ─────────────────────────
@@ -158,6 +254,28 @@ export const INVENTORY = [
 
 // ─── Course Outcomes ─────────────────────────
 export const COURSE_OUTCOMES = {
+    '8th': {
+        'Mathematics': [
+            { id: 'CO1', description: 'Solve linear equations in one variable', attainment: 82 },
+            { id: 'CO2', description: 'Understand quadrilaterals and polygons', attainment: 78 },
+            { id: 'CO3', description: 'Apply ratio and proportion concepts', attainment: 85 },
+        ],
+        'Science': [
+            { id: 'CO1', description: 'Understand microorganisms and their effects', attainment: 76 },
+            { id: 'CO2', description: 'Explain force and pressure concepts', attainment: 72 },
+        ],
+    },
+    '9th': {
+        'Mathematics': [
+            { id: 'CO1', description: 'Apply number system concepts', attainment: 79 },
+            { id: 'CO2', description: 'Solve polynomial equations', attainment: 74 },
+            { id: 'CO3', description: 'Understand coordinate geometry basics', attainment: 71 },
+        ],
+        'Science': [
+            { id: 'CO1', description: 'Explain cell structure and functions', attainment: 80 },
+            { id: 'CO2', description: 'Apply laws of motion', attainment: 68 },
+        ],
+    },
     '10th': {
         'Mathematics': [
             { id: 'CO1', description: 'Apply algebraic techniques to solve equations', attainment: 78 },
@@ -169,6 +287,20 @@ export const COURSE_OUTCOMES = {
             { id: 'CO1', description: 'Understand chemical reactions and equations', attainment: 74 },
             { id: 'CO2', description: 'Apply laws of motion and energy conservation', attainment: 69 },
             { id: 'CO3', description: 'Explain biological processes in living organisms', attainment: 82 },
+        ],
+    },
+    '11th Science': {
+        'Physics': [
+            { id: 'CO1', description: 'Apply kinematics and dynamics concepts', attainment: 73 },
+            { id: 'CO2', description: 'Understand work, energy, and power', attainment: 70 },
+        ],
+        'Chemistry': [
+            { id: 'CO1', description: 'Master atomic structure and periodic table', attainment: 75 },
+            { id: 'CO2', description: 'Understand chemical bonding', attainment: 68 },
+        ],
+        'Mathematics': [
+            { id: 'CO1', description: 'Apply sets and functions concepts', attainment: 77 },
+            { id: 'CO2', description: 'Understand trigonometric functions', attainment: 72 },
         ],
     },
     '12th Science': {
@@ -183,11 +315,36 @@ export const COURSE_OUTCOMES = {
             { id: 'CO3', description: 'Understand coordination compounds', attainment: 59 },
         ],
     },
+    '11th Commerce': {
+        'Accountancy': [
+            { id: 'CO1', description: 'Understand accounting fundamentals', attainment: 80 },
+            { id: 'CO2', description: 'Prepare trial balance and financial statements', attainment: 75 },
+        ],
+        'Economics': [
+            { id: 'CO1', description: 'Apply microeconomic principles', attainment: 78 },
+            { id: 'CO2', description: 'Understand market structures', attainment: 72 },
+        ],
+    },
     '12th Commerce': {
         'Accountancy': [
             { id: 'CO1', description: 'Prepare financial statements for partnerships', attainment: 85 },
             { id: 'CO2', description: 'Analyze company accounts and balance sheets', attainment: 78 },
             { id: 'CO3', description: 'Apply cost accounting principles', attainment: 70 },
         ],
+        'Economics': [
+            { id: 'CO1', description: 'Understand macroeconomic concepts', attainment: 76 },
+            { id: 'CO2', description: 'Analyze Indian economy developments', attainment: 72 },
+        ],
     },
 };
+
+// ─── Helper functions ─────────────────────────
+export const getStudentById = (id) => STUDENTS.find(s => s.id === id);
+export const getStudentsByStandard = (std) => STUDENTS.filter(s => s.standard === std);
+export const getAttendanceByStudent = (id) => ATTENDANCE_RECORDS.filter(a => a.studentId === id);
+export const getAttendanceByDate = (date) => ATTENDANCE_RECORDS.filter(a => a.date === date);
+export const getResourcesByStandard = (std) => RESOURCES.filter(r => r.standard === std);
+
+// Console log for verification
+console.log(`📚 Dipesh Tutorials - Loaded ${TOTAL_STUDENTS} students across ${STANDARDS.length} standards`);
+console.log(`📊 Distribution:`, STUDENT_COUNTS);

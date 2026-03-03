@@ -3,6 +3,7 @@ import { useAuth } from '../App';
 import { STUDENTS, FINANCIAL_DATA, INVENTORY, STANDARDS } from '../data';
 import { IndianRupee, TrendingUp, TrendingDown, Package, Search, Download, Plus, X, AlertCircle, BookOpen, ShoppingBag } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { exportCSV, showToast } from '../utils';
 
 const COLORS = ['#0A2351', '#B6922E', '#10B981', '#3B82F6', '#EF4444'];
 
@@ -101,7 +102,11 @@ function AdminBilling() {
             </div>
 
             <div className="card">
-                <div className="card-header"><h3>Student Fee Records</h3><button className="btn-secondary btn-small"><Download size={14} /> Export</button></div>
+                <div className="card-header"><h3>Student Fee Records</h3><button className="btn-secondary btn-small" onClick={() => {
+                    exportCSV('fee_records', ['Student', 'ID', 'Standard', 'Total Fees', 'Paid', 'Balance', 'Status'],
+                        filteredStudents.map(s => [s.name, s.id, s.standard, s.totalFees, s.paidFees, s.totalFees - s.paidFees, s.feeStatus]));
+                    showToast('Fee records exported!');
+                }}><Download size={14} /> Export</button></div>
                 <div className="card-body" style={{ padding: 0 }}>
                     <div style={{ overflowX: 'auto' }}>
                         <table className="data-table">
@@ -116,7 +121,7 @@ function AdminBilling() {
                                         <td style={{ color: s.totalFees - s.paidFees > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>₹{(s.totalFees - s.paidFees).toLocaleString('en-IN')}</td>
                                         <td><span className={`badge ${s.feeStatus}`}>{s.feeStatus}</span></td>
                                         <td>
-                                            {s.feeStatus !== 'paid' && <button className="btn-gold btn-small" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>Send Reminder</button>}
+                                            {s.feeStatus !== 'paid' && <button className="btn-gold btn-small" style={{ fontSize: '0.7rem', padding: '4px 10px' }} onClick={(e) => { e.stopPropagation(); showToast(`Fee reminder sent to ${s.parentName}!`); }}>Send Reminder</button>}
                                         </td>
                                     </tr>
                                 ))}
@@ -201,7 +206,7 @@ function SuperAdminBilling() {
                     </div>
 
                     <div className="card">
-                        <div className="card-header"><h3>Inventory Items</h3><button className="btn-gold btn-small"><Plus size={14} /> Add Item</button></div>
+                        <div className="card-header"><h3>Inventory Items</h3><button className="btn-gold btn-small" onClick={() => showToast('Add Item feature — connect to your inventory system', 'info')}><Plus size={14} /> Add Item</button></div>
                         <div className="card-body" style={{ padding: 0 }}>
                             <table className="data-table">
                                 <thead><tr><th>Item</th><th>Category</th><th>Stock</th><th>Sold</th><th>Price</th><th>Cost</th><th>Profit</th></tr></thead>

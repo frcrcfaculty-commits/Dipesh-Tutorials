@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../App';
 import { ATTENDANCE_RECORDS, STUDENTS, STANDARDS } from '../data';
 import { CalendarCheck, Search, Filter, CheckCircle, XCircle, Clock, Download } from 'lucide-react';
+import { exportCSV, showToast } from '../utils';
 
 export default function Attendance() {
     const { user } = useAuth();
@@ -141,7 +142,11 @@ export default function Attendance() {
                 <div className="card-header">
                     <h3>Attendance Records</h3>
                     {(user.role === 'admin' || user.role === 'superadmin') && (
-                        <button className="btn-secondary btn-small"><Download size={14} /> Export</button>
+                        <button className="btn-secondary btn-small" onClick={() => {
+                            exportCSV('attendance', ['Date', 'Student', 'Standard', 'Status'],
+                                filtered.map(r => [r.date, STUDENTS.find(s => s.id === r.studentId)?.name || r.studentId, STUDENTS.find(s => s.id === r.studentId)?.standard || '', r.status]));
+                            showToast('Attendance data exported!');
+                        }}><Download size={14} /> Export</button>
                     )}
                 </div>
                 <div className="card-body" style={{ padding: 0 }}>

@@ -5,6 +5,7 @@ import {
     Upload, FileSpreadsheet, FileText, Search, Filter, Download,
     Plus, X, CheckCircle, AlertCircle, Eye
 } from 'lucide-react';
+import { exportCSV, showToast } from '../utils';
 
 export default function TestResults() {
     const { user } = useAuth();
@@ -116,7 +117,11 @@ export default function TestResults() {
                     <div className="card">
                         <div className="card-header">
                             <h3>Test Results ({studentSummaries.length} students)</h3>
-                            <button className="btn-secondary btn-small"><Download size={14} /> Export</button>
+                            <button className="btn-secondary btn-small" onClick={() => {
+                                exportCSV('test_results', ['ID', 'Student', 'Standard', 'Subjects', 'Average %'],
+                                    studentSummaries.map(s => [s.id, s.name, s.standard, s.subjects.map(sub => `${sub.subject}:${sub.grade}`).join('; '), s.average]));
+                                showToast('Test results exported!');
+                            }}><Download size={14} /> Export</button>
                         </div>
                         <div className="card-body" style={{ padding: 0 }}>
                             <div style={{ overflowX: 'auto' }}>
@@ -277,8 +282,18 @@ export default function TestResults() {
                                             </p>
                                         </div>
                                         <div style={{ display: 'flex', gap: 8 }}>
-                                            <button className="btn-secondary btn-small"><FileSpreadsheet size={14} /> .xlsx</button>
-                                            <button className="btn-secondary btn-small"><FileText size={14} /> .docx</button>
+                                            <button className="btn-secondary btn-small" onClick={() => {
+                                                const stdStudents = STUDENTS.filter(s => s.standard === uploadStandard);
+                                                exportCSV(`template_${uploadStandard}`, ['Student ID', 'Student Name', 'Subject', 'Topic 1', 'Topic 2', 'Topic 3', 'Topic 4', 'Topic 5'],
+                                                    stdStudents.flatMap(s => (SUBJECTS_BY_STANDARD[uploadStandard] || []).map(sub => [s.id, s.name, sub, '', '', '', '', ''])));
+                                                showToast('Template downloaded!');
+                                            }}><FileSpreadsheet size={14} /> .xlsx</button>
+                                            <button className="btn-secondary btn-small" onClick={() => {
+                                                const stdStudents = STUDENTS.filter(s => s.standard === uploadStandard);
+                                                exportCSV(`template_${uploadStandard}`, ['Student ID', 'Student Name', 'Subject', 'Topic 1', 'Topic 2', 'Topic 3', 'Topic 4', 'Topic 5'],
+                                                    stdStudents.flatMap(s => (SUBJECTS_BY_STANDARD[uploadStandard] || []).map(sub => [s.id, s.name, sub, '', '', '', '', ''])));
+                                                showToast('Template downloaded!');
+                                            }}><FileText size={14} /> .docx</button>
                                         </div>
                                     </div>
                                 </div>

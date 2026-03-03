@@ -4,6 +4,7 @@ import { RESOURCES, STANDARDS, SUBJECTS_BY_STANDARD } from '../data';
 import {
     Search, FileText, Video, HelpCircle, Presentation, StickyNote, Upload, Download, Play, X, Plus
 } from 'lucide-react';
+import { showToast } from '../utils';
 
 const TYPE_ICONS = { 'PDF Notes': FileText, 'Video': Video, 'MCQ Set': HelpCircle, 'PPT': Presentation, 'Notes': StickyNote };
 const TYPE_FILTERS = ['All Types', 'PDF Notes', 'Video', 'MCQ Set', 'PPT', 'Notes'];
@@ -132,7 +133,8 @@ export default function Resources() {
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                     <span>{r.uploadedBy} · {r.date}</span>
-                                    <button className="btn-gold btn-small" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
+                                    <button className="btn-gold btn-small" style={{ fontSize: '0.75rem', padding: '4px 12px' }}
+                                        onClick={() => showToast(`${r.type === 'Video' ? 'Playing' : 'Downloading'} "${r.title}"...`)}>
                                         {r.type === 'Video' ? <Play size={12} /> : <Download size={12} />}
                                         {getActionLabel(r.type)}
                                     </button>
@@ -206,7 +208,7 @@ export default function Resources() {
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12, background: 'rgba(10,35,81,0.04)', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}>
                                 📌 This resource will only be visible to <strong>{uploadStandard}</strong> students and admin staff.
                             </p>
-                            <button className="btn-primary">
+                            <button className="btn-primary" onClick={() => showToast('Resource uploaded successfully!')}>
                                 <Upload size={16} /> Upload Resource
                             </button>
                         </div>

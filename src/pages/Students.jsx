@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { STUDENTS, STANDARDS } from '../data';
 import { Search, Users, Download } from 'lucide-react';
+import { exportCSV, showToast } from '../utils';
 
 export default function Students() {
     const [search, setSearch] = useState('');
@@ -60,7 +61,11 @@ export default function Students() {
             <div className="card">
                 <div className="card-header">
                     <h3>Students ({filtered.length})</h3>
-                    <button className="btn-secondary btn-small"><Download size={14} /> Export</button>
+                    <button className="btn-secondary btn-small" onClick={() => {
+                        exportCSV('students', ['ID', 'Name', 'Standard', 'Roll No', 'Attendance %', 'Fee Status', 'Parent', 'Contact'],
+                            filtered.map(s => [s.id, s.name, s.standard, s.rollNo, s.attendancePercent, s.feeStatus, s.parentName, s.parentPhone]));
+                        showToast('Student data exported!');
+                    }}><Download size={14} /> Export</button>
                 </div>
                 <div className="card-body" style={{ padding: 0 }}>
                     <div style={{ overflowX: 'auto' }}>

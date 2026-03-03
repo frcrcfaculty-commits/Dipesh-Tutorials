@@ -41,11 +41,19 @@ export default function Layout({ children }) {
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    // Compute dynamic notification badge
-    const unreadCount = useMemo(() =>
-        NOTIFICATIONS.filter(n => n.for.includes(user.role) && !n.read).length,
-        [user.role]
-    );
+    // Compute dynamic notification badge (static + localStorage sent)
+    const unreadCount = useMemo(() => {
+        const staticCount = NOTIFICATIONS.filter(n => n.for.includes(user.role) && !n.read).length;
+        let sentCount = 0;
+        try {
+            const stored = localStorage.getItem('dipesh_sent_notifications');
+            if (stored) {
+                const sent = JSON.parse(stored);
+                sentCount = sent.filter(n => n.for.includes(user.role) && !n.read).length;
+            }
+        } catch { }
+        return staticCount + sentCount;
+    }, [user.role]);
 
     const handleLogout = () => {
         logout();

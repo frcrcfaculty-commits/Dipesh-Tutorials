@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { DEMO_USERS, STUDENTS } from './data';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -10,6 +10,8 @@ import Billing from './pages/Billing';
 import Notifications from './pages/Notifications';
 import CourseMapping from './pages/CourseMapping';
 import Students from './pages/Students';
+import Analytics from './pages/Analytics';
+import TestResults from './pages/TestResults';
 
 // ─── Auth Context ──────────────────────────
 const AuthContext = createContext(null);
@@ -71,6 +73,8 @@ function AppRoutes() {
             <Route path="/notifications" element={<ProtectedRoute><Layout><Notifications /></Layout></ProtectedRoute>} />
             <Route path="/course-mapping" element={<ProtectedRoute roles={['student', 'admin', 'superadmin']}><Layout><CourseMapping /></Layout></ProtectedRoute>} />
             <Route path="/students" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><Students /></Layout></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><Layout><Analytics /></Layout></ProtectedRoute>} />
+            <Route path="/test-results" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><TestResults /></Layout></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
@@ -78,10 +82,10 @@ function AppRoutes() {
 
 export default function App() {
     return (
-        <BrowserRouter>
+        <HashRouter>
             <AuthProvider>
                 <AppRoutes />
             </AuthProvider>
-        </BrowserRouter>
+        </HashRouter>
     );
 }

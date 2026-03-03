@@ -131,14 +131,25 @@ export const STUDENT_COUNTS = STANDARDS.reduce((acc, std) => {
 }, {});
 
 // ─── Users (login credentials) ─────────────────────────
+// NOTE: Names must match the generated STUDENTS data for STU0001
+const stu0001 = STUDENTS.find(s => s.id === 'STU0001');
 export const DEMO_USERS = {
-    'parent@demo.com': { password: 'parent123', role: 'parent', name: 'Mr. Rakesh Sharma', childId: 'STU0001' },
-    'student@demo.com': { password: 'student123', role: 'student', name: 'Aditi Sharma', studentId: 'STU0001', standard: '8th' },
+    'parent@demo.com': { password: 'parent123', role: 'parent', name: stu0001 ? stu0001.parentName : 'Mr. Sharma', childId: 'STU0001' },
+    'student@demo.com': { password: 'student123', role: 'student', name: stu0001 ? stu0001.name : 'Student', studentId: 'STU0001', standard: stu0001 ? stu0001.standard : '8th' },
     'admin@demo.com': { password: 'admin123', role: 'admin', name: 'Sunita Deshmukh', designation: 'Admin Staff' },
     'superadmin@demo.com': { password: 'super123', role: 'superadmin', name: 'Dipesh Sir', designation: 'Director' },
 };
 
 // ─── Attendance Records ─────────────────────────
+// Timezone-safe date formatter (avoids UTC offset issues with toISOString)
+function formatLocalDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function getTodayStr() {
+    return formatLocalDate(new Date());
+}
+
 function generateAttendance() {
     const records = [];
     const now = new Date(2026, 1, 28); // Feb 28, 2026
@@ -172,7 +183,7 @@ function generateAttendance() {
                 studentId: student.id,
                 studentName: student.name,
                 standard: student.standard,
-                date: date.toISOString().split('T')[0],
+                date: formatLocalDate(date),
                 status,
                 arrivalTime,
                 method: seededRandom(seed + 3) > 0.4 ? 'face_detection' : 'manual',
@@ -338,13 +349,140 @@ export const COURSE_OUTCOMES = {
     },
 };
 
+// ─── Topics by Subject (for test marking) ─────────────────────────
+export const TOPICS_BY_SUBJECT = {
+    'Mathematics': ['Algebra', 'Geometry', 'Trigonometry', 'Statistics & Probability', 'Number Systems', 'Mensuration'],
+    'Science': ['Physics', 'Chemistry', 'Biology', 'Environmental Science'],
+    'English': ['Grammar', 'Comprehension', 'Writing', 'Literature'],
+    'Hindi': ['Vyakaran', 'Gadya', 'Padya', 'Lekhan'],
+    'Marathi': ['Vyakaran', 'Gadya', 'Padya', 'Lekhan'],
+    'Social Studies': ['History', 'Geography', 'Civics', 'Economics'],
+    'Physics': ['Mechanics', 'Thermodynamics', 'Optics', 'Electricity & Magnetism', 'Modern Physics'],
+    'Chemistry': ['Organic Chemistry', 'Inorganic Chemistry', 'Physical Chemistry', 'Analytical Chemistry'],
+    'Biology': ['Botany', 'Zoology', 'Genetics', 'Ecology'],
+    'Accountancy': ['Journal Entries', 'Ledger & Trial Balance', 'Financial Statements', 'Partnership Accounts'],
+    'Economics': ['Microeconomics', 'Macroeconomics', 'Indian Economy', 'Statistics for Economics'],
+    'Business Studies': ['Business Environment', 'Management Principles', 'Marketing', 'Finance & Trade'],
+    'Maths/SP': ['Algebra', 'Calculus', 'Statistics', 'Probability'],
+};
+
+// ─── Tests ─────────────────────────
+export const TESTS = [
+    { id: 'T001', name: 'Unit Test 1', date: '2025-08-15', maxMarksPerTopic: 25, type: 'unit' },
+    { id: 'T002', name: 'Mid-Term Exam', date: '2025-11-10', maxMarksPerTopic: 25, type: 'midterm' },
+    { id: 'T003', name: 'Unit Test 2', date: '2026-01-20', maxMarksPerTopic: 25, type: 'unit' },
+];
+
+// ─── Generate Test Results ─────────────────────────
+function generateTestResults() {
+    const results = [];
+    let resultId = 1;
+
+    for (const student of STUDENTS) {
+        const subjects = SUBJECTS_BY_STANDARD[student.standard] || [];
+
+        for (const test of TESTS) {
+            for (const subject of subjects) {
+                const topics = TOPICS_BY_SUBJECT[subject] || ['General'];
+                const baseSeed = student.id.charCodeAt(4) * 1000 + resultId;
+
+                // Generate topic-wise marks (each out of maxMarksPerTopic)
+                const topicMarks = topics.map((topic, ti) => {
+                    const seed = baseSeed + ti * 7 + test.id.charCodeAt(3) * 13;
+                    // Create varied performance: some students strong in some topics, weak in others
+                    const studentStrength = seededRandom(baseSeed + ti) * 0.4 + 0.3; // 0.3–0.7 base
+                    const topicDifficulty = seededRandom(seed + 100) * 0.3; // 0–0.3 variance
+                    const testVariance = seededRandom(seed + 200) * 0.2 - 0.1; // -0.1 to 0.1
+                    const rawPercent = Math.min(1, Math.max(0.08, studentStrength + topicDifficulty + testVariance));
+                    const marks = Math.round(rawPercent * test.maxMarksPerTopic);
+                    return { topic, marks, maxMarks: test.maxMarksPerTopic };
+                });
+
+                const totalMarks = topicMarks.reduce((s, t) => s + t.marks, 0);
+                const maxTotal = topicMarks.reduce((s, t) => s + t.maxMarks, 0);
+                const percentage = Math.round((totalMarks / maxTotal) * 100);
+                const grade = percentage >= 90 ? 'A+' : percentage >= 80 ? 'A' : percentage >= 70 ? 'B+' : percentage >= 60 ? 'B' : percentage >= 50 ? 'C' : percentage >= 35 ? 'D' : 'F';
+
+                results.push({
+                    id: `TR${String(resultId).padStart(5, '0')}`,
+                    studentId: student.id,
+                    studentName: student.name,
+                    standard: student.standard,
+                    testId: test.id,
+                    testName: test.name,
+                    testDate: test.date,
+                    subject,
+                    topicMarks,
+                    totalMarks,
+                    maxTotal,
+                    percentage,
+                    grade,
+                });
+                resultId++;
+            }
+        }
+    }
+    return results;
+}
+
+export const TEST_RESULTS = generateTestResults();
+
 // ─── Helper functions ─────────────────────────
 export const getStudentById = (id) => STUDENTS.find(s => s.id === id);
 export const getStudentsByStandard = (std) => STUDENTS.filter(s => s.standard === std);
 export const getAttendanceByStudent = (id) => ATTENDANCE_RECORDS.filter(a => a.studentId === id);
 export const getAttendanceByDate = (date) => ATTENDANCE_RECORDS.filter(a => a.date === date);
 export const getResourcesByStandard = (std) => RESOURCES.filter(r => r.standard === std);
+export const getTestResultsByStudent = (id) => TEST_RESULTS.filter(r => r.studentId === id);
+export const getTestResultsByStandard = (std) => TEST_RESULTS.filter(r => r.standard === std);
+
+// Get weak topics for a student (topics where they scored < 50% in latest test)
+export function getWeakTopics(studentId) {
+    const student = STUDENTS.find(s => s.id === studentId);
+    if (!student) return [];
+    const latestTest = TESTS[TESTS.length - 1];
+    const results = TEST_RESULTS.filter(r => r.studentId === studentId && r.testId === latestTest.id);
+    const weakTopics = [];
+    for (const result of results) {
+        for (const tm of result.topicMarks) {
+            const pct = (tm.marks / tm.maxMarks) * 100;
+            if (pct < 50) {
+                weakTopics.push({
+                    subject: result.subject,
+                    topic: tm.topic,
+                    marks: tm.marks,
+                    maxMarks: tm.maxMarks,
+                    percentage: Math.round(pct),
+                    grade: result.grade,
+                });
+            }
+        }
+    }
+    return weakTopics.sort((a, b) => a.percentage - b.percentage);
+}
+
+// Get improvement suggestions for weak topics
+export function getImprovementSuggestions(studentId) {
+    const weakTopics = getWeakTopics(studentId);
+    const student = STUDENTS.find(s => s.id === studentId);
+    if (!student) return [];
+    const resources = RESOURCES.filter(r => r.standard === student.standard);
+
+    return weakTopics.map(wt => {
+        const relatedResources = resources.filter(r =>
+            r.subject.toLowerCase() === wt.subject.toLowerCase() ||
+            r.tags.some(t => wt.topic.toLowerCase().includes(t.toLowerCase()))
+        );
+        const suggestions = [];
+        if (wt.percentage < 30) suggestions.push(`Needs urgent attention — scored only ${wt.marks}/${wt.maxMarks}`);
+        else suggestions.push(`Scored ${wt.marks}/${wt.maxMarks} — needs more practice`);
+        suggestions.push(`Revise ${wt.topic} concepts in ${wt.subject}`);
+        if (relatedResources.length > 0) suggestions.push(`Check resource: "${relatedResources[0].title}"`);
+        return { ...wt, suggestions, relatedResources };
+    });
+}
 
 // Console log for verification
 console.log(`📚 Dipesh Tutorials - Loaded ${TOTAL_STUDENTS} students across ${STANDARDS.length} standards`);
 console.log(`📊 Distribution:`, STUDENT_COUNTS);
+console.log(`📝 Test Results: ${TEST_RESULTS.length} records across ${TESTS.length} tests`);

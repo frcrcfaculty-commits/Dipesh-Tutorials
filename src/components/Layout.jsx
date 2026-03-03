@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../App';
+import { NOTIFICATIONS } from '../data';
 import {
     GraduationCap, LayoutDashboard, CalendarCheck, FolderOpen, IndianRupee,
-    Bell, GitBranch, Users, LogOut, Menu, X, Search, ChevronRight
+    Bell, GitBranch, Users, LogOut, Menu, X, Search, ChevronRight,
+    BarChart3, FileText, Lightbulb
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -17,13 +19,16 @@ const NAV_ITEMS = [
     {
         section: 'Learning', items: [
             { path: '/resources', label: 'Resource Hub', icon: FolderOpen, roles: ['student', 'admin', 'superadmin'] },
-            { path: '/course-mapping', label: 'Course Outcomes', icon: GitBranch, roles: ['student', 'admin', 'superadmin'] },
+            { path: '/course-mapping', label: 'Course Outcomes', icon: GitBranch, roles: ['admin', 'superadmin'] },
+            { path: '/course-mapping', label: 'Topics to Improve', icon: Lightbulb, roles: ['student'] },
+            { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['parent', 'student', 'admin', 'superadmin'] },
         ]
     },
     {
         section: 'Management', items: [
+            { path: '/test-results', label: 'Test Results', icon: FileText, roles: ['admin', 'superadmin'] },
             { path: '/billing', label: 'Billing & Fees', icon: IndianRupee, roles: ['parent', 'admin', 'superadmin'] },
-            { path: '/notifications', label: 'Notifications', icon: Bell, badge: 3, roles: ['parent', 'student', 'admin', 'superadmin'] },
+            { path: '/notifications', label: 'Notifications', icon: Bell, dynamicBadge: true, roles: ['parent', 'student', 'admin', 'superadmin'] },
         ]
     },
 ];
@@ -36,13 +41,24 @@ export default function Layout({ children }) {
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
+    // Compute dynamic notification badge
+    const unreadCount = useMemo(() =>
+        NOTIFICATIONS.filter(n => n.for.includes(user.role) && !n.read).length,
+        [user.role]
+    );
+
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
     const getPageTitle = () => {
-        const titles = { '/': 'Dashboard', '/attendance': 'Attendance', '/resources': 'Resource Hub', '/billing': 'Billing & Fees', '/notifications': 'Notifications', '/course-mapping': 'Course Outcomes', '/students': 'Students' };
+        const titles = {
+            '/': 'Dashboard', '/attendance': 'Attendance', '/resources': 'Resource Hub',
+            '/billing': 'Billing & Fees', '/notifications': 'Notifications',
+            '/course-mapping': user.role === 'student' ? 'Topics to Improve' : 'Course Outcomes',
+            '/students': 'Students', '/analytics': 'Analytics', '/test-results': 'Test Results'
+        };
         return titles[location.pathname] || 'Dashboard';
     };
 
@@ -70,13 +86,13 @@ export default function Layout({ children }) {
                                 <div className="nav-section-title">{section.section}</div>
                                 {visibleItems.map(item => (
                                     <div
-                                        key={item.path}
+                                        key={item.label}
                                         className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
                                         onClick={() => { navigate(item.path); setSidebarOpen(false); }}
                                     >
                                         <item.icon />
                                         <span>{item.label}</span>
-                                        {item.badge && <span className="badge">{item.badge}</span>}
+                                        {item.dynamicBadge && unreadCount > 0 && <span className="badge">{unreadCount}</span>}
                                     </div>
                                 ))}
                             </div>
@@ -108,7 +124,7 @@ export default function Layout({ children }) {
                     <div className="top-bar-right">
                         <button className="icon-btn" onClick={() => navigate('/notifications')}>
                             <Bell size={18} />
-                            <span className="dot" />
+                            {unreadCount > 0 && <span className="dot" />}
                         </button>
                     </div>
                 </header>

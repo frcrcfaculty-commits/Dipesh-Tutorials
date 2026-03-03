@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { NOTIFICATIONS } from '../data';
 import { Bell, CalendarCheck, IndianRupee, BookOpen, Megaphone, FileText, Send, X, Plus, CheckCircle } from 'lucide-react';
@@ -22,13 +22,35 @@ const AUDIENCE_ROLE_MAP = {
     'All Staff': ['admin'],
 };
 
+// localStorage key for persisted notifications
+const STORAGE_KEY = 'dipesh_sent_notifications';
+
+function loadSentNotifications() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveSentNotifications(notifications) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+    } catch {
+        // localStorage full or unavailable
+    }
+}
+
 export default function Notifications() {
     const { user } = useAuth();
     const isAdmin = user.role === 'admin' || user.role === 'superadmin';
     const [showCompose, setShowCompose] = useState(false);
     const [readState, setReadState] = useState({});
-    const [localNotifications, setLocalNotifications] = useState([]);
     const [sentSuccess, setSentSuccess] = useState(false);
+
+    // Load persisted notifications from localStorage
+    const [sentNotifications, setSentNotifications] = useState(() => loadSentNotifications());
 
     // Compose form state
     const [title, setTitle] = useState('');
@@ -36,7 +58,8 @@ export default function Notifications() {
     const [audience, setAudience] = useState(['All Parents']);
     const [type, setType] = useState('General Announcement');
 
-    const allNotifications = [...localNotifications, ...NOTIFICATIONS];
+    // Merge persisted sent notifications with static demo data
+    const allNotifications = [...sentNotifications, ...NOTIFICATIONS];
     const myNotifications = allNotifications.filter(n => n.for.includes(user.role));
 
     const toggleRead = (id) => {
@@ -78,9 +101,13 @@ export default function Notifications() {
             for: Array.from(targetRoles),
             time: 'Just now',
             read: false,
+            sentBy: user.name || user.role,
+            sentAt: new Date().toISOString(),
         };
 
-        setLocalNotifications(prev => [newNotification, ...prev]);
+        const updated = [newNotification, ...sentNotifications];
+        setSentNotifications(updated);
+        saveSentNotifications(updated);
         setSentSuccess(true);
 
         // Auto-close after 1.5s
@@ -124,6 +151,11 @@ export default function Notifications() {
                             <div className="notif-content">
                                 <h4>{n.title}</h4>
                                 <p>{n.message}</p>
+                                {n.sentBy && (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginTop: 2, display: 'block' }}>
+                                        Sent by {n.sentBy}
+                                    </span>
+                                )}
                             </div>
                             <span className="notif-time">{n.time}</span>
                         </div>

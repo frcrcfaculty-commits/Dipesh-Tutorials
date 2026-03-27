@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { GraduationCap, Mail, Lock, Users, BookOpen, Shield, Crown, ArrowRight } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Users, BookOpen, Shield, Crown, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 
 const ROLES = [
     { id: 'parent', label: 'Parent', icon: Users, email: 'parent@demo.com' },
@@ -11,7 +11,7 @@ const ROLES = [
 ];
 
 export default function Login() {
-    const { login } = useAuth();
+    const { login, firebaseLogin } = useAuth();
     const navigate = useNavigate();
     const [selectedRole, setSelectedRole] = useState('parent');
     const [email, setEmail] = useState('parent@demo.com');
@@ -32,14 +32,41 @@ export default function Login() {
         setLoading(true);
         setError('');
 
-        // Simulate network delay
-        await new Promise(r => setTimeout(r, 600));
-
-        const result = login(email, password);
-        if (result.success) {
-            navigate('/');
+        // Try Firebase auth first, fall back to demo login
+        if (firebaseLogin) {
+            try {
+                const result = await firebaseLogin(email, password);
+                if (result.success) {
+                    navigate('/');
+                    return;
+                } else {
+                    // Fall back to demo login if Firebase not configured
+                    const demoResult = login(email, password);
+                    if (demoResult.success) {
+                        navigate('/');
+                        return;
+                    } else {
+                        setError(result.error || 'Login failed');
+                    }
+                }
+            } catch (err) {
+                // Firebase not configured — use demo login
+                const result = login(email, password);
+                if (result.success) {
+                    navigate('/');
+                    return;
+                } else {
+                    setError(result.error || 'Login failed');
+                }
+            }
         } else {
-            setError(result.error);
+            // Demo mode
+            const result = login(email, password);
+            if (result.success) {
+                navigate('/');
+            } else {
+                setError(result.error);
+            }
         }
         setLoading(false);
     };
@@ -58,7 +85,6 @@ export default function Login() {
                     </p>
                 </div>
 
-                {/* Role Selector */}
                 <div className="role-selector">
                     {ROLES.map(role => (
                         <button
@@ -73,7 +99,6 @@ export default function Login() {
                     ))}
                 </div>
 
-                {/* Login Form */}
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label>Email Address</label>
@@ -104,17 +129,27 @@ export default function Login() {
                     </div>
 
                     {error && (
-                        <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: 12 }}>{error}</p>
+                        <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <AlertCircle size={14} /> {error}
+                        </p>
                     )}
 
                     <button type="submit" className="btn-primary" disabled={loading}>
-                        {loading ? 'Signing in...' : 'Sign In'}
-                        {!loading && <ArrowRight size={18} />}
+                        {loading ? (
+                            <>
+                                <Loader2 size={18} className="spin" /> Signing in...
+                            </>
+                        ) : (
+                            <>Sign In <ArrowRight size={18} /></>
+                        )}
                     </button>
                 </form>
 
                 <div style={{ textAlign: 'center', marginTop: 20, fontSize: '0.75rem', color: '#9CA3AF' }}>
                     <p>Demo Credentials — Select a role above to auto-fill</p>
+                    <p style={{ marginTop: 4, color: '#6B7280' }}>
+                        Configure Firebase in <code>.env</code> for real authentication
+                    </p>
                 </div>
             </div>
         </div>

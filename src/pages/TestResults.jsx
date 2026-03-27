@@ -6,6 +6,7 @@ import {
     Plus, X, CheckCircle, AlertCircle, Eye
 } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
+import { generateTestResultReportPDF } from '../reports';
 
 export default function TestResults() {
     const { user } = useAuth();
@@ -122,6 +123,10 @@ export default function TestResults() {
                                     studentSummaries.map(s => [s.id, s.name, s.standard, s.subjects.map(sub => `${sub.subject}:${sub.grade}`).join('; '), s.average]));
                                 showToast('Test results exported!');
                             }}><Download size={14} /> Export</button>
+                            <button className="btn-secondary btn-small" onClick={() => {
+                                generateTestResultReportPDF(filteredResults, selectedStandard);
+                                showToast('PDF generated!');
+                            }}><Download size={14} /> Export PDF</button>
                         </div>
                         <div className="card-body" style={{ padding: 0 }}>
                             <div style={{ overflowX: 'auto' }}>

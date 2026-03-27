@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
 import { DEMO_USERS, STUDENTS } from './data';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -22,8 +24,20 @@ function AuthProvider({ children }) {
         const saved = localStorage.getItem('dt_user');
         return saved ? JSON.parse(saved) : null;
     });
+    const [firebaseUser, setFirebaseUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    // Listen to Firebase auth state
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (fu) => {
+            setFirebaseUser(fu);
+            setLoading(false);
+        });
+        return unsubscribe;
+    }, []);
 
     const login = (email, password) => {
+        // Demo login fallback
         const u = DEMO_USERS[email];
         if (!u || u.password !== password) return { success: false, error: 'Invalid email or password' };
 
@@ -41,20 +55,89 @@ function AuthProvider({ children }) {
         return { success: true };
     };
 
-    const logout = () => {
+    const firebaseLogin = async (email, password) => {
+        try {
+            const { signInWithEmailAndPassword } = await import('firebase/auth');
+            const credential = await signInWithEmailAndPassword(auth, email, password);
+            const fu = credential.user;
+
+            // Get user role from Firestore
+            const { getUserProfile } = await import('./firebase');
+            const profile = await getUserProfile(fu.uid);
+
+            const userData = {
+                uid: fu.uid,
+                email: fu.email,
+                displayName: profile?.displayName || fu.displayName || email.split('@')[0],
+                role: profile?.role || 'admin',
+                photoURL: fu.photoURL,
+                firebaseUser: true,
+            };
+            setUser(userData);
+            localStorage.setItem('dt_user', JSON.stringify(userData));
+            return { success: true };
+        } catch (err) {
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                return { success: false, error: 'Invalid email or password' };
+            }
+            if (err.code === 'auth/network-request-failed') {
+                return { success: false, error: 'Network error — check Firebase configuration' };
+            }
+            return { success: false, error: err.message };
+        }
+    };
+
+    const logout = async () => {
+        if (firebaseUser) {
+            try {
+                const { logout } = await import('./firebase');
+                await logout();
+            } catch (_) {}
+        }
         setUser(null);
         localStorage.removeItem('dt_user');
     };
 
+    // Sync: if Firebase logged in but no local user, create local user from Firebase
+    useEffect(() => {
+        if (firebaseUser && !user) {
+            (async () => {
+                try {
+                    const { getUserProfile } = await import('./firebase');
+                    const profile = await getUserProfile(firebaseUser.uid);
+                    const userData = {
+                        uid: firebaseUser.uid,
+                        email: firebaseUser.email,
+                        displayName: profile?.displayName || firebaseUser.displayName || firebaseUser.email.split('@')[0],
+                        role: profile?.role || 'admin',
+                        photoURL: firebaseUser.photoURL,
+                        firebaseUser: true,
+                    };
+                    setUser(userData);
+                    localStorage.setItem('dt_user', JSON.stringify(userData));
+                } catch (_) {}
+            })();
+        }
+    }, [firebaseUser, user]);
+
     return (
-        <AuthContext.Provider value={{ user, login, logout }}>
+        <AuthContext.Provider value={{ user, login, firebaseLogin, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );
 }
 
 function ProtectedRoute({ children, roles }) {
-    const { user } = useAuth();
+    const { user, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+                <div className="loading-spinner" />
+            </div>
+        );
+    }
+
     if (!user) return <Navigate to="/login" replace />;
     if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
     return children;

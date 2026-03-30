@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from './lib/supabase';
-import { getStudentByProfileId, getStudentsByParentProfileId } from './lib/api';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
+import { DEMO_USERS, STUDENTS } from './data';
 import Layout from './components/Layout';
-import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
@@ -14,127 +14,130 @@ import CourseMapping from './pages/CourseMapping';
 import Students from './pages/Students';
 import Analytics from './pages/Analytics';
 import TestResults from './pages/TestResults';
-import UserManagement from './pages/UserManagement';
 
 // ─── Auth Context ──────────────────────────
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
-// ─── Data Context (standards, subjects cached) ──────────
-const DataContext = createContext(null);
-export const useData = () => useContext(DataContext);
-
 function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(() => {
+        const saved = localStorage.getItem('dt_user');
+        return saved ? JSON.parse(saved) : null;
+    });
+    const [firebaseUser, setFirebaseUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [standards, setStandards] = useState([]);
-    const [subjects, setSubjects] = useState([]);
 
+    // Listen to Firebase auth state
     useEffect(() => {
-        // Load session
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            if (session?.user) {
-                await loadUserProfile(session.user.id);
-            }
+        const unsubscribe = onAuthStateChanged(auth, (fu) => {
+            setFirebaseUser(fu);
             setLoading(false);
         });
-
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session?.user) {
-                await loadUserProfile(session.user.id);
-            } else if (event === 'SIGNED_OUT') {
-                setUser(null);
-            }
-        });
-
-        // Load reference data
-        loadReferenceData();
-
-        return () => subscription.unsubscribe();
+        return unsubscribe;
     }, []);
 
-    async function loadReferenceData() {
-        const [stdRes, subRes] = await Promise.all([
-            supabase.from('standards').select('*').order('sort_order'),
-            supabase.from('subjects').select('*, standards(name)').order('name'),
-        ]);
-        setStandards(stdRes.data || []);
-        setSubjects(subRes.data || []);
-    }
+    const login = (email, password) => {
+        // Demo login fallback
+        const u = DEMO_USERS[email];
+        if (!u || u.password !== password) return { success: false, error: 'Invalid email or password' };
 
-    async function loadUserProfile(userId) {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
-
-        if (!profile) return;
-
-        let studentData = null;
-        let children = [];
-
-        if (profile.role === 'student') {
-            studentData = await getStudentByProfileId(userId);
-        } else if (profile.role === 'parent') {
-            children = await getStudentsByParentProfileId(userId);
+        const userData = { email, ...u };
+        if (u.role === 'parent') {
+            const child = STUDENTS.find(s => s.id === u.childId);
+            if (child) userData.child = child;
         }
-
-        setUser({
-            ...profile,
-            student: studentData,
-            children,
-            child: children[0] || null, // backward compat
-        });
-    }
-
-    const login = async (email, password) => {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) return { success: false, error: error.message };
-        await loadUserProfile(data.user.id);
+        if (u.role === 'student') {
+            const student = STUDENTS.find(s => s.id === u.studentId);
+            if (student) userData.student = student;
+        }
+        setUser(userData);
+        localStorage.setItem('dt_user', JSON.stringify(userData));
         return { success: true };
     };
 
+    const firebaseLogin = async (email, password) => {
+        try {
+            const { signInWithEmailAndPassword } = await import('firebase/auth');
+            const credential = await signInWithEmailAndPassword(auth, email, password);
+            const fu = credential.user;
+
+            // Get user role from Firestore
+            const { getUserProfile } = await import('./firebase');
+            const profile = await getUserProfile(fu.uid);
+
+            const userData = {
+                uid: fu.uid,
+                email: fu.email,
+                displayName: profile?.displayName || fu.displayName || email.split('@')[0],
+                role: profile?.role || 'admin',
+                photoURL: fu.photoURL,
+                firebaseUser: true,
+            };
+            setUser(userData);
+            localStorage.setItem('dt_user', JSON.stringify(userData));
+            return { success: true };
+        } catch (err) {
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                return { success: false, error: 'Invalid email or password' };
+            }
+            if (err.code === 'auth/network-request-failed') {
+                return { success: false, error: 'Network error — check Firebase configuration' };
+            }
+            return { success: false, error: err.message };
+        }
+    };
+
     const logout = async () => {
-        await supabase.auth.signOut();
+        if (firebaseUser) {
+            try {
+                const { logout } = await import('./firebase');
+                await logout();
+            } catch (_) {}
+        }
         setUser(null);
+        localStorage.removeItem('dt_user');
     };
 
-    // Helper to get subjects for a standard
-    const getSubjectsForStandard = (standardId) => {
-        return subjects.filter(s => s.standard_id === standardId);
-    };
-
-    const getStandardName = (standardId) => {
-        return standards.find(s => s.id === standardId)?.name || '';
-    };
-
-    if (loading) {
-        return (
-            <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                height: '100vh', background: 'var(--bg)',
-                fontFamily: 'var(--font-heading)', color: 'var(--navy)',
-                fontSize: '1.2rem', gap: 12
-            }}>
-                <div className="spinner" />
-                Loading Dipesh Tutorials...
-            </div>
-        );
-    }
+    // Sync: if Firebase logged in but no local user, create local user from Firebase
+    useEffect(() => {
+        if (firebaseUser && !user) {
+            (async () => {
+                try {
+                    const { getUserProfile } = await import('./firebase');
+                    const profile = await getUserProfile(firebaseUser.uid);
+                    const userData = {
+                        uid: firebaseUser.uid,
+                        email: firebaseUser.email,
+                        displayName: profile?.displayName || firebaseUser.displayName || firebaseUser.email.split('@')[0],
+                        role: profile?.role || 'admin',
+                        photoURL: firebaseUser.photoURL,
+                        firebaseUser: true,
+                    };
+                    setUser(userData);
+                    localStorage.setItem('dt_user', JSON.stringify(userData));
+                } catch (_) {}
+            })();
+        }
+    }, [firebaseUser, user]);
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
-            <DataContext.Provider value={{ standards, subjects, getSubjectsForStandard, getStandardName }}>
-                {children}
-            </DataContext.Provider>
+        <AuthContext.Provider value={{ user, login, firebaseLogin, logout, loading }}>
+            {children}
         </AuthContext.Provider>
     );
 }
 
 function ProtectedRoute({ children, roles }) {
-    const { user } = useAuth();
+    const { user, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+                <div className="loading-spinner" />
+            </div>
+        );
+    }
+
     if (!user) return <Navigate to="/login" replace />;
     if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
     return children;
@@ -155,7 +158,6 @@ function AppRoutes() {
             <Route path="/students" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><Students /></Layout></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Layout><Analytics /></Layout></ProtectedRoute>} />
             <Route path="/test-results" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><TestResults /></Layout></ProtectedRoute>} />
-            <Route path="/user-management" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><UserManagement /></Layout></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
@@ -163,12 +165,10 @@ function AppRoutes() {
 
 export default function App() {
     return (
-        <ErrorBoundary>
-            <HashRouter>
-                <AuthProvider>
-                    <AppRoutes />
-                </AuthProvider>
-            </HashRouter>
-        </ErrorBoundary>
+        <HashRouter>
+            <AuthProvider>
+                <AppRoutes />
+            </AuthProvider>
+        </HashRouter>
     );
 }

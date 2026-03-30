@@ -1,70 +1,58 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth, useData } from '../App';
-import { getStudents, getFeePayments, recordPayment, getAllFeePayments, getFeeStructures, getFeeStructureByStandard } from '../lib/api';
-import { IndianRupee, AlertCircle, Search, Download, Plus, X, Save, CheckCircle, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { useAuth } from '../App';
+import { STUDENTS, FINANCIAL_DATA, INVENTORY, STANDARDS } from '../data';
+import { IndianRupee, TrendingUp, TrendingDown, Package, Search, Download, Plus, X, AlertCircle, BookOpen, ShoppingBag } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { exportCSV, showToast } from '../utils';
-import { generateFeeReportPDF } from '../reports';
+
+const COLORS = ['#0A2351', '#B6922E', '#10B981', '#3B82F6', '#EF4444'];
 
 function ParentBilling({ user }) {
-    const child = user.child;
-    const [payments, setPayments] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [feeInfo, setFeeInfo] = useState(null);
-
-    useEffect(() => {
-        if (!child) return;
-        Promise.all([
-            getFeePayments(child.id),
-            getFeeStructureByStandard(child.standard_id),
-        ]).then(([pays, feeData]) => {
-            setPayments(pays || []);
-            setFeeInfo(feeData);
-            setLoading(false);
-        });
-    }, [child]);
-
-    if (!child) return <div className="empty-state"><h3>No student linked</h3></div>;
-
-    const totalFees = feeInfo?.total_amount || 0;
-    const paidFees = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-    const balance = totalFees - paidFees;
+    const child = user.child || STUDENTS[0];
+    const installments = [
+        { term: 'Term 1 (Jun–Sep)', amount: Math.floor(child.totalFees / 3), status: 'paid', date: '2025-06-15' },
+        { term: 'Term 2 (Oct–Jan)', amount: Math.floor(child.totalFees / 3), status: child.feeStatus === 'paid' ? 'paid' : 'pending', date: '2025-10-15' },
+        { term: 'Term 3 (Feb–May)', amount: child.totalFees - 2 * Math.floor(child.totalFees / 3), status: child.feeStatus === 'overdue' ? 'overdue' : child.feeStatus === 'pending' ? 'pending' : 'paid', date: '2026-02-15' },
+    ];
 
     return (
         <>
-            <div className="fee-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-                <div className="card" style={{ padding: 20, textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 4 }}>Total Fees</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--navy)' }}>₹{totalFees.toLocaleString('en-IN')}</div>
+            <div className="fee-summary">
+                <div className="fee-card">
+                    <div className="fee-label">Total Fees</div>
+                    <div className="fee-amount" style={{ color: 'var(--navy)' }}>₹{child.totalFees.toLocaleString('en-IN')}</div>
+                    <div className="fee-label">{child.standard} Standard</div>
                 </div>
-                <div className="card" style={{ padding: 20, textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 4 }}>Paid</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--success)' }}>₹{paidFees.toLocaleString('en-IN')}</div>
+                <div className="fee-card">
+                    <div className="fee-label">Amount Paid</div>
+                    <div className="fee-amount" style={{ color: 'var(--success)' }}>₹{child.paidFees.toLocaleString('en-IN')}</div>
+                    <div className="progress-bar" style={{ marginTop: 8, height: 8 }}>
+                        <div className="progress-fill green" style={{ width: `${child.paidFees / child.totalFees * 100}%` }} />
+                    </div>
                 </div>
-                <div className="card" style={{ padding: 20, textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 4 }}>Balance</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: balance > 0 ? 'var(--danger)' : 'var(--success)' }}>₹{balance.toLocaleString('en-IN')}</div>
+                <div className="fee-card">
+                    <div className="fee-label">Balance Due</div>
+                    <div className="fee-amount" style={{ color: child.totalFees - child.paidFees > 0 ? 'var(--danger)' : 'var(--success)' }}>₹{(child.totalFees - child.paidFees).toLocaleString('en-IN')}</div>
+                    <span className={`badge ${child.feeStatus}`}>{child.feeStatus}</span>
                 </div>
             </div>
 
             <div className="card">
                 <div className="card-header"><h3>Payment History</h3></div>
                 <div className="card-body" style={{ padding: 0 }}>
-                    {loading ? <div className="empty-state"><div className="spinner" /></div> : (
-                        <table className="data-table">
-                            <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Receipt</th></tr></thead>
-                            <tbody>
-                                {payments.map(p => (
-                                    <tr key={p.id}>
-                                        <td>{new Date(p.payment_date).toLocaleDateString('en-IN')}</td>
-                                        <td style={{ fontWeight: 600, color: 'var(--success)' }}>₹{parseFloat(p.amount).toLocaleString('en-IN')}</td>
-                                        <td>{p.payment_method}</td>
-                                        <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{p.receipt_no || '—'}</td>
-                                    </tr>
-                                ))}
-                                {payments.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>No payments recorded yet.</td></tr>}
-                            </tbody>
-                        </table>
-                    )}
+                    <table className="data-table">
+                        <thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {installments.map((inst, i) => (
+                                <tr key={i}>
+                                    <td style={{ fontWeight: 600 }}>{inst.term}</td>
+                                    <td>₹{inst.amount.toLocaleString('en-IN')}</td>
+                                    <td>{inst.date}</td>
+                                    <td><span className={`badge ${inst.status}`}>{inst.status}</span></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </>
@@ -72,88 +60,28 @@ function ParentBilling({ user }) {
 }
 
 function AdminBilling() {
-    const { standards } = useData();
-    const [students, setStudents] = useState([]);
-    const [feeStructures, setFeeStructures] = useState([]);
-    const [allPayments, setAllPayments] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [standardFilter, setStandardFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All');
-    const [showPayment, setShowPayment] = useState(null);
-    const [payAmount, setPayAmount] = useState('');
-    const [payMethod, setPayMethod] = useState('cash');
-    const [saving, setSaving] = useState(false);
-    const { user } = useAuth();
+    const [standardFilter, setStandardFilter] = useState('All');
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    const filteredStudents = STUDENTS.filter(s => {
+        if (statusFilter !== 'All' && s.feeStatus !== statusFilter) return false;
+        if (standardFilter !== 'All' && s.standard !== standardFilter) return false;
+        if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
+        return true;
+    }).slice(0, 50);
 
-    async function loadData() {
-        setLoading(true);
-        try {
-            const [studs, fees, pays] = await Promise.all([
-                getStudents(),
-                getFeeStructures(),
-                getAllFeePayments(),
-            ]);
-            setStudents(studs || []);
-            setFeeStructures(fees || []);
-            setAllPayments(pays || []);
-        } catch (err) { showToast(err.message, 'error'); }
-        setLoading(false);
-    }
-
-    const studentFees = useMemo(() => {
-        return students.map(s => {
-            const structure = feeStructures.find(f => f.standard_id === s.standard_id);
-            const totalFees = structure ? parseFloat(structure.total_amount) : 0;
-            const payments = allPayments.filter(p => p.student_id === s.id);
-            const paidFees = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-            const balance = totalFees - paidFees;
-            const status = paidFees >= totalFees ? 'paid' : paidFees > 0 ? 'pending' : 'overdue';
-            return { ...s, totalFees, paidFees, balance, feeStatus: status };
-        });
-    }, [students, feeStructures, allPayments]);
-
-    const filtered = useMemo(() => {
-        return studentFees.filter(s => {
-            if (standardFilter !== 'All' && s.standard_id !== parseInt(standardFilter)) return false;
-            if (statusFilter !== 'All' && s.feeStatus !== statusFilter) return false;
-            if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
-            return true;
-        });
-    }, [studentFees, standardFilter, statusFilter, search]);
-
-    const totalPending = filtered.filter(s => s.feeStatus !== 'paid').reduce((sum, s) => sum + s.balance, 0);
-
-    const handleRecordPayment = async () => {
-        if (!payAmount || parseFloat(payAmount) <= 0) { showToast('Enter valid amount', 'error'); return; }
-        setSaving(true);
-        try {
-            await recordPayment({
-                student_id: showPayment.id,
-                amount: parseFloat(payAmount),
-                payment_method: payMethod,
-                receipt_no: `RCP-${Date.now()}`,
-                recorded_by: user.id,
-            });
-            showToast(`₹${payAmount} payment recorded for ${showPayment.name}`);
-            setShowPayment(null);
-            setPayAmount('');
-            loadData();
-        } catch (err) { showToast(err.message, 'error'); }
-        setSaving(false);
-    };
+    const pendingCount = STUDENTS.filter(s => s.feeStatus === 'pending').length;
+    const overdueCount = STUDENTS.filter(s => s.feeStatus === 'overdue').length;
+    const totalPending = STUDENTS.filter(s => s.feeStatus !== 'paid').reduce((sum, s) => sum + (s.totalFees - s.paidFees), 0);
 
     return (
         <>
             <div className="stats-grid">
-                <div className="stat-card gold"><div className="stat-icon gold"><IndianRupee size={24} /></div><div className="stat-info"><h4>Total Students</h4><div className="stat-value">{studentFees.length}</div></div></div>
-                <div className="stat-card red"><div className="stat-icon red"><AlertCircle size={24} /></div><div className="stat-info"><h4>Pending Amount</h4><div className="stat-value">₹{(totalPending / 1000).toFixed(0)}K</div></div></div>
-                <div className="stat-card green"><div className="stat-icon green"><CheckCircle size={24} /></div><div className="stat-info"><h4>Fully Paid</h4><div className="stat-value">{studentFees.filter(s => s.feeStatus === 'paid').length}</div></div></div>
-                <div className="stat-card navy"><div className="stat-icon navy"><AlertCircle size={24} /></div><div className="stat-info"><h4>Overdue</h4><div className="stat-value">{studentFees.filter(s => s.feeStatus === 'overdue').length}</div></div></div>
+                <div className="stat-card gold"><div className="stat-icon gold"><IndianRupee size={24} /></div><div className="stat-info"><h4>Collected (This Month)</h4><div className="stat-value">₹{(FINANCIAL_DATA.collectedThisMonth / 1000).toFixed(0)}K</div></div></div>
+                <div className="stat-card red"><div className="stat-icon red"><AlertCircle size={24} /></div><div className="stat-info"><h4>Total Pending</h4><div className="stat-value">₹{(totalPending / 1000).toFixed(0)}K</div></div></div>
+                <div className="stat-card navy"><div className="stat-icon navy"><TrendingDown size={24} /></div><div className="stat-info"><h4>Pending Students</h4><div className="stat-value">{pendingCount}</div></div></div>
+                <div className="stat-card blue"><div className="stat-icon blue"><AlertCircle size={24} /></div><div className="stat-info"><h4>Overdue</h4><div className="stat-value">{overdueCount}</div></div></div>
             </div>
 
             <div className="search-bar">
@@ -168,87 +96,137 @@ function AdminBilling() {
                 <div className="select-wrapper">
                     <select value={standardFilter} onChange={e => setStandardFilter(e.target.value)}>
                         <option value="All">All Standards</option>
-                        {standards.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        {STANDARDS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 </div>
             </div>
 
             <div className="card">
-                <div className="card-header">
-                    <h3>Fee Records ({filtered.length})</h3>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                        <button className="btn-secondary btn-small" onClick={() => {
-                            exportCSV('fees', ['Student', 'Standard', 'Total', 'Paid', 'Balance', 'Status'],
-                                filtered.map(s => [s.name, s.standards?.name, s.totalFees, s.paidFees, s.balance, s.feeStatus]));
-                            showToast('CSV exported!');
-                        }}><Download size={14} /> CSV</button>
-                        <button className="btn-gold btn-small" onClick={() => {
-                            generateFeeReportPDF(filtered.map(s => ({
-                                name: s.name, standard: s.standards?.name || '', totalFees: s.totalFees,
-                                paidFees: s.paidFees, feeStatus: s.feeStatus
-                            })));
-                            showToast('PDF report generated!');
-                        }}><FileText size={14} /> PDF</button>
+                <div className="card-header"><h3>Student Fee Records</h3><button className="btn-secondary btn-small" onClick={() => {
+                    exportCSV('fee_records', ['Student', 'ID', 'Standard', 'Total Fees', 'Paid', 'Balance', 'Status'],
+                        filteredStudents.map(s => [s.name, s.id, s.standard, s.totalFees, s.paidFees, s.totalFees - s.paidFees, s.feeStatus]));
+                    showToast('Fee records exported!');
+                }}><Download size={14} /> Export</button></div>
+                <div className="card-body" style={{ padding: 0 }}>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table">
+                            <thead><tr><th>Student</th><th>Standard</th><th>Total Fees</th><th>Paid</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead>
+                            <tbody>
+                                {filteredStudents.map(s => (
+                                    <tr key={s.id}>
+                                        <td style={{ fontWeight: 600 }}>{s.name}<br /><span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.id}</span></td>
+                                        <td>{s.standard}</td>
+                                        <td>₹{s.totalFees.toLocaleString('en-IN')}</td>
+                                        <td style={{ color: 'var(--success)' }}>₹{s.paidFees.toLocaleString('en-IN')}</td>
+                                        <td style={{ color: s.totalFees - s.paidFees > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>₹{(s.totalFees - s.paidFees).toLocaleString('en-IN')}</td>
+                                        <td><span className={`badge ${s.feeStatus}`}>{s.feeStatus}</span></td>
+                                        <td>
+                                            {s.feeStatus !== 'paid' && <button className="btn-gold btn-small" style={{ fontSize: '0.7rem', padding: '4px 10px' }} onClick={(e) => { e.stopPropagation(); showToast(`Fee reminder sent to ${s.parentName}!`); }}>Send Reminder</button>}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div className="card-body" style={{ padding: 0 }}>
-                    {loading ? <div className="empty-state"><div className="spinner" /></div> : (
-                        <div style={{ overflowX: 'auto' }}>
+            </div>
+        </>
+    );
+}
+
+function SuperAdminBilling() {
+    const [tab, setTab] = useState('overview');
+
+    const totalInventoryRevenue = INVENTORY.reduce((s, i) => s + i.sold * i.price, 0);
+    const totalInventoryCost = INVENTORY.reduce((s, i) => s + i.sold * i.cost, 0);
+    const inventoryProfit = totalInventoryRevenue - totalInventoryCost;
+
+    return (
+        <>
+            <div className="tabs">
+                <button className={`tab ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>P&L Overview</button>
+                <button className={`tab ${tab === 'fees' ? 'active' : ''}`} onClick={() => setTab('fees')}>Fee Management</button>
+                <button className={`tab ${tab === 'inventory' ? 'active' : ''}`} onClick={() => setTab('inventory')}>Inventory</button>
+            </div>
+
+            {tab === 'overview' && (
+                <>
+                    <div className="stats-grid">
+                        <div className="stat-card green"><div className="stat-icon green"><TrendingUp size={24} /></div><div className="stat-info"><h4>Total Revenue</h4><div className="stat-value">₹{(FINANCIAL_DATA.totalRevenue / 100000).toFixed(1)}L</div></div></div>
+                        <div className="stat-card red"><div className="stat-icon red"><TrendingDown size={24} /></div><div className="stat-info"><h4>Total Expenses</h4><div className="stat-value">₹{(FINANCIAL_DATA.totalExpenses / 100000).toFixed(1)}L</div></div></div>
+                        <div className="stat-card navy"><div className="stat-icon navy"><IndianRupee size={24} /></div><div className="stat-info"><h4>Net Profit</h4><div className="stat-value">₹{(FINANCIAL_DATA.netProfit / 100000).toFixed(1)}L</div><span className="stat-change up">↑ Healthy</span></div></div>
+                        <div className="stat-card gold"><div className="stat-icon gold"><Package size={24} /></div><div className="stat-info"><h4>Inventory Profit</h4><div className="stat-value">₹{(inventoryProfit / 1000).toFixed(0)}K</div></div></div>
+                    </div>
+
+                    <div className="grid-2">
+                        <div className="card">
+                            <div className="card-header"><h3>Monthly Revenue vs Expenses</h3></div>
+                            <div className="card-body">
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart data={FINANCIAL_DATA.monthlyRevenue}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                                        <XAxis dataKey="month" fontSize={12} />
+                                        <YAxis fontSize={12} tickFormatter={v => `₹${v / 1000}K`} />
+                                        <Tooltip formatter={v => `₹${v.toLocaleString('en-IN')}`} />
+                                        <Bar dataKey="revenue" fill="#0A2351" radius={[4, 4, 0, 0]} name="Revenue" />
+                                        <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name="Expenses" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                        <div className="card">
+                            <div className="card-header"><h3>Expense Breakdown</h3></div>
+                            <div className="card-body">
+                                {FINANCIAL_DATA.expenses.map((exp, i) => (
+                                    <div key={i} style={{ marginBottom: 16 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{exp.category}</span>
+                                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>₹{exp.amount.toLocaleString('en-IN')} ({exp.percentage}%)</span>
+                                        </div>
+                                        <div className="progress-bar">
+                                            <div className="progress-fill navy" style={{ width: `${exp.percentage}%` }} />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {tab === 'fees' && <AdminBilling />}
+
+            {tab === 'inventory' && (
+                <>
+                    <div className="stats-grid">
+                        <div className="stat-card navy"><div className="stat-icon navy"><Package size={24} /></div><div className="stat-info"><h4>Total Items</h4><div className="stat-value">{INVENTORY.length}</div></div></div>
+                        <div className="stat-card green"><div className="stat-icon green"><ShoppingBag size={24} /></div><div className="stat-info"><h4>Items Sold</h4><div className="stat-value">{INVENTORY.reduce((s, i) => s + i.sold, 0)}</div></div></div>
+                        <div className="stat-card gold"><div className="stat-icon gold"><IndianRupee size={24} /></div><div className="stat-info"><h4>Revenue</h4><div className="stat-value">₹{(totalInventoryRevenue / 1000).toFixed(0)}K</div></div></div>
+                        <div className="stat-card blue"><div className="stat-icon blue"><TrendingUp size={24} /></div><div className="stat-info"><h4>Profit</h4><div className="stat-value">₹{(inventoryProfit / 1000).toFixed(0)}K</div></div></div>
+                    </div>
+
+                    <div className="card">
+                        <div className="card-header"><h3>Inventory Items</h3><button className="btn-gold btn-small" onClick={() => showToast('Add Item feature — connect to your inventory system', 'info')}><Plus size={14} /> Add Item</button></div>
+                        <div className="card-body" style={{ padding: 0 }}>
                             <table className="data-table">
-                                <thead><tr><th>Student</th><th>Standard</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead>
+                                <thead><tr><th>Item</th><th>Category</th><th>Stock</th><th>Sold</th><th>Price</th><th>Cost</th><th>Profit</th></tr></thead>
                                 <tbody>
-                                    {filtered.slice(0, 50).map(s => (
-                                        <tr key={s.id}>
-                                            <td style={{ fontWeight: 600 }}>{s.name}</td>
-                                            <td>{s.standards?.name}</td>
-                                            <td>₹{s.totalFees.toLocaleString('en-IN')}</td>
-                                            <td style={{ color: 'var(--success)' }}>₹{s.paidFees.toLocaleString('en-IN')}</td>
-                                            <td style={{ color: s.balance > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>₹{s.balance.toLocaleString('en-IN')}</td>
-                                            <td><span className={`badge ${s.feeStatus}`}>{s.feeStatus}</span></td>
-                                            <td>
-                                                {s.feeStatus !== 'paid' && (
-                                                    <button className="btn-gold btn-small" style={{ fontSize: '0.7rem', padding: '4px 10px' }}
-                                                        onClick={() => { setShowPayment(s); setPayAmount(''); }}>
-                                                        <Plus size={12} /> Record Payment
-                                                    </button>
-                                                )}
-                                            </td>
+                                    {INVENTORY.map(item => (
+                                        <tr key={item.id}>
+                                            <td style={{ fontWeight: 600 }}>{item.name}</td>
+                                            <td><span className="resource-tag">{item.category}</span></td>
+                                            <td>{item.quantity - item.sold}</td>
+                                            <td>{item.sold}</td>
+                                            <td>₹{item.price}</td>
+                                            <td>₹{item.cost}</td>
+                                            <td style={{ color: 'var(--success)', fontWeight: 600 }}>₹{((item.price - item.cost) * item.sold).toLocaleString('en-IN')}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Payment Modal */}
-            {showPayment && (
-                <div className="modal-overlay" onClick={() => setShowPayment(null)}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
-                        <div className="modal-header"><h3>Record Payment</h3><button onClick={() => setShowPayment(null)} className="icon-btn" style={{ width: 32, height: 32 }}><X size={16} /></button></div>
-                        <div className="modal-body">
-                            <p style={{ marginBottom: 16 }}>Recording payment for <strong>{showPayment.name}</strong> (Balance: ₹{showPayment.balance.toLocaleString('en-IN')})</p>
-                            <div className="form-group">
-                                <label>Amount (₹) *</label>
-                                <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)}
-                                    placeholder="Enter amount" min="1" max={showPayment.balance}
-                                    style={{ width: '100%', padding: '10px 14px', border: '2px solid var(--border)', borderRadius: 'var(--radius-md)' }} />
-                            </div>
-                            <div className="form-group">
-                                <label>Payment Method</label>
-                                <div className="select-wrapper">
-                                    <select value={payMethod} onChange={e => setPayMethod(e.target.value)}>
-                                        {['cash', 'upi', 'bank_transfer', 'cheque'].map(m => <option key={m} value={m}>{m.replace('_', ' ').toUpperCase()}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            <button className="btn-primary" onClick={handleRecordPayment} disabled={saving}>
-                                <Save size={16} /> {saving ? 'Saving...' : 'Record Payment'}
-                            </button>
-                        </div>
                     </div>
-                </div>
+                </>
             )}
         </>
     );
@@ -257,5 +235,6 @@ function AdminBilling() {
 export default function Billing() {
     const { user } = useAuth();
     if (user.role === 'parent') return <ParentBilling user={user} />;
+    if (user.role === 'superadmin') return <SuperAdminBilling />;
     return <AdminBilling />;
 }

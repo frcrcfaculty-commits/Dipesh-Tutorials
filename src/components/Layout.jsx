@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../App';
-import { supabase } from '../lib/supabase';
+import { NOTIFICATIONS } from '../data';
 import {
     GraduationCap, LayoutDashboard, CalendarCheck, FolderOpen, IndianRupee,
     Bell, GitBranch, Users, LogOut, Menu, X, Search, ChevronRight,
-    BarChart3, FileText, Lightbulb, Shield
+    BarChart3, FileText, Lightbulb
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -29,7 +29,6 @@ const NAV_ITEMS = [
             { path: '/test-results', label: 'Test Results', icon: FileText, roles: ['admin', 'superadmin'] },
             { path: '/billing', label: 'Billing & Fees', icon: IndianRupee, roles: ['parent', 'admin', 'superadmin'] },
             { path: '/notifications', label: 'Notifications', icon: Bell, dynamicBadge: true, roles: ['parent', 'student', 'admin', 'superadmin'] },
-            { path: '/user-management', label: 'User Accounts', icon: Shield, roles: ['admin', 'superadmin'] },
         ]
     },
 ];
@@ -42,25 +41,19 @@ export default function Layout({ children }) {
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    // Notification badge - fetch unread count from Supabase
-    const [unreadCount, setUnreadCount] = useState(0);
-    useEffect(() => {
-        if (!user) return;
-        async function fetchUnread() {
-            try {
-                const [notifsRes, readsRes] = await Promise.all([
-                    supabase.from('notifications').select('id', { count: 'exact', head: false }).contains('target_roles', [user.role]),
-                    supabase.from('notification_reads').select('notification_id').eq('profile_id', user.id),
-                ]);
-                const totalNotifs = (notifsRes.data || []).length;
-                const readCount = (readsRes.data || []).length;
-                setUnreadCount(Math.max(0, totalNotifs - readCount));
-            } catch { /* silent */ }
-        }
-        fetchUnread();
-        const interval = setInterval(fetchUnread, 30000); // refresh every 30s
-        return () => clearInterval(interval);
-    }, [user]);
+    // Compute dynamic notification badge (static + localStorage sent)
+    const unreadCount = useMemo(() => {
+        const staticCount = NOTIFICATIONS.filter(n => n.for.includes(user.role) && !n.read).length;
+        let sentCount = 0;
+        try {
+            const stored = localStorage.getItem('dipesh_sent_notifications');
+            if (stored) {
+                const sent = JSON.parse(stored);
+                sentCount = sent.filter(n => n.for.includes(user.role) && !n.read).length;
+            }
+        } catch { }
+        return staticCount + sentCount;
+    }, [user.role]);
 
     const handleLogout = () => {
         logout();
@@ -72,8 +65,7 @@ export default function Layout({ children }) {
             '/': 'Dashboard', '/attendance': 'Attendance', '/resources': 'Resource Hub',
             '/billing': 'Billing & Fees', '/notifications': 'Notifications',
             '/course-mapping': user.role === 'student' ? 'Topics to Improve' : 'Course Outcomes',
-            '/students': 'Students', '/analytics': 'Analytics', '/test-results': 'Test Results',
-            '/user-management': 'User Accounts'
+            '/students': 'Students', '/analytics': 'Analytics', '/test-results': 'Test Results'
         };
         return titles[location.pathname] || 'Dashboard';
     };

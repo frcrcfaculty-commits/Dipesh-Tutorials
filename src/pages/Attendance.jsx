@@ -1,142 +1,118 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth, useData } from '../App';
-import { getAttendanceByDate, markAttendance, getStudentAttendance } from '../lib/api';
-import { CalendarCheck, Search, CheckCircle, XCircle, Clock, Download, Save, Check, FileText } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useAuth } from '../App';
+import { ATTENDANCE_RECORDS as MOCK_ATTENDANCE, STUDENTS as MOCK_STUDENTS, STANDARDS } from '../data';
+import { subscribeAttendance, markAttendance, subscribeStudents } from '../firebase';
+import { CalendarCheck, Search, CheckCircle, XCircle, Clock, Download, Save, Loader2 } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
-import { generateAttendanceReportPDF } from '../reports';
 
 export default function Attendance() {
     const { user } = useAuth();
-    const { standards } = useData();
-    const todayStr = new Date().toISOString().split('T')[0];
-
     const [selectedStandard, setSelectedStandard] = useState('All');
+    const todayStr = new Date().toISOString().split('T')[0];
     const [selectedDate, setSelectedDate] = useState(todayStr);
     const [searchQuery, setSearchQuery] = useState('');
-    const [studentsWithAttendance, setStudentsWithAttendance] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [attendanceRecords, setAttendanceRecords] = useState({});
+    const [students, setStudents] = useState(MOCK_STUDENTS);
     const [saving, setSaving] = useState(false);
-    const [editMode, setEditMode] = useState(false);
-    const [localStatus, setLocalStatus] = useState({});
-
-    // Student/parent calendar data
-    const [calendarData, setCalendarData] = useState([]);
+    const [showMark, setShowMark] = useState(false);
 
     const isParent = user.role === 'parent';
     const isStudent = user.role === 'student';
-    const isAdmin = user.role === 'admin' || user.role === 'superadmin';
 
+    // Subscribe to real data
     useEffect(() => {
-        if (isParent || isStudent) {
-            loadStudentCalendar();
-        } else {
-            loadAttendance();
-        }
-    }, [selectedDate, selectedStandard]);
-
-    async function loadAttendance() {
-        setLoading(true);
+        let u1, u2;
         try {
-            const data = await getAttendanceByDate(
-                selectedDate,
-                selectedStandard !== 'All' ? parseInt(selectedStandard) : null
-            );
-            setStudentsWithAttendance(data || []);
-            // Initialize local status from existing records
-            const statusMap = {};
-            (data || []).forEach(s => {
-                const att = s.attendance?.[0];
-                if (att) statusMap[s.id] = att.status;
-            });
-            setLocalStatus(statusMap);
-        } catch (err) {
-            showToast(err.message, 'error');
-        }
-        setLoading(false);
-    }
+            u1 = subscribeAttendance(selectedDate, (data) => { if (data) setAttendanceRecords(data); });
+            u2 = subscribeStudents((data) => { if (data && data.length > 0) setStudents(data); });
+        } catch (_) {}
+        return () => { if (u1) u1(); if (u2) u2(); };
+    }, [selectedDate]);
 
-    async function loadStudentCalendar() {
-        setLoading(true);
-        try {
-            const studentId = isStudent ? user.student?.id : user.child?.id;
-            if (!studentId) { setLoading(false); return; }
-            const data = await getStudentAttendance(studentId, 28);
-            // Build calendar
-            const days = [];
-            const now = new Date();
-            for (let d = 27; d >= 0; d--) {
-                const date = new Date(now);
-                date.setDate(date.getDate() - d);
-                const dateStr = date.toISOString().split('T')[0];
-                const record = (data || []).find(r => r.date === dateStr);
-                days.push({
-                    date: date.getDate(),
-                    day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()],
-                    status: date.getDay() === 0 ? 'holiday' : record ? record.status : 'holiday',
-                });
-            }
-            setCalendarData(days);
-            // Also compute stats
-            const records = data || [];
-            setStudentsWithAttendance(records.map(r => ({ ...r, studentName: user.student?.name || user.child?.name || '' })));
-        } catch (err) {
-            showToast(err.message, 'error');
-        }
-        setLoading(false);
-    }
+    // Current day's attendance for admin marking
+    const todayStudents = useMemo(() => {
+        if (isParent || isStudent) return [];
+        return students.filter(s => selectedStandard === 'All' || s.standard === selectedStandard);
+    }, [students, selectedStandard, isParent, isStudent]);
 
-    const setStatus = (studentId, status) => {
-        setLocalStatus(prev => ({ ...prev, [studentId]: status }));
-    };
-
-    const handleSaveAttendance = async () => {
+    const handleMark = async (studentId, status) => {
+        const student = students.find(s => s.id === studentId);
         setSaving(true);
         try {
-            const records = Object.entries(localStatus).map(([studentId, status]) => ({
-                student_id: studentId,
-                date: selectedDate,
-                status,
-                method: 'manual',
-                marked_by: user.id,
+            await markAttendance(selectedDate, studentId, status, student?.standard || selectedStandard);
+            setAttendanceRecords(prev => ({
+                ...prev,
+                [studentId]: { ...prev[studentId], status }
             }));
-            await markAttendance(records);
-            showToast(`Attendance saved for ${records.length} students`);
-            setEditMode(false);
-            loadAttendance();
         } catch (err) {
-            showToast(err.message, 'error');
+            // Demo fallback
+            setAttendanceRecords(prev => ({
+                ...prev,
+                [studentId]: { ...prev[studentId], status }
+            }));
+            showToast(`Marked ${status} (demo)`);
         }
         setSaving(false);
     };
 
-    // Filtered for admin view
-    const filtered = useMemo(() => {
-        if (isParent || isStudent) return studentsWithAttendance;
-        return studentsWithAttendance.filter(s => {
-            if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-            return true;
-        });
-    }, [studentsWithAttendance, searchQuery, isParent, isStudent]);
+    const getStatus = (studentId) => attendanceRecords[studentId]?.status || null;
 
-    const presentCount = isAdmin
-        ? filtered.filter(s => localStatus[s.id] === 'present' || s.attendance?.[0]?.status === 'present').length
-        : studentsWithAttendance.filter(r => r.status === 'present').length;
-    const lateCount = isAdmin
-        ? filtered.filter(s => localStatus[s.id] === 'late' || s.attendance?.[0]?.status === 'late').length
-        : studentsWithAttendance.filter(r => r.status === 'late').length;
-    const absentCount = isAdmin
-        ? filtered.filter(s => localStatus[s.id] === 'absent' || s.attendance?.[0]?.status === 'absent').length
-        : studentsWithAttendance.filter(r => r.status === 'absent').length;
-    const total = filtered.length || 1;
+    // Filter records for display
+    const filteredRecords = useMemo(() => {
+        let records = MOCK_ATTENDANCE;
+
+        if (isParent) {
+            const childId = user.child?.id || user.childId || 'STU0001';
+            records = records.filter(r => r.studentId === childId);
+        } else if (isStudent) {
+            const studentId = user.student?.id || user.studentId || 'STU0001';
+            records = records.filter(r => r.studentId === studentId);
+        } else {
+            if (selectedStandard !== 'All') {
+                records = records.filter(r => r.standard === selectedStandard);
+            }
+            if (selectedDate) {
+                records = records.filter(r => r.date === selectedDate);
+            }
+        }
+
+        if (searchQuery) {
+            records = records.filter(r => r.studentName.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+
+        return records;
+    }, [selectedStandard, selectedDate, searchQuery, isParent, isStudent, user]);
+
+    const presentCount = filteredRecords.filter(r => r.status === 'present').length;
+    const lateCount = filteredRecords.filter(r => r.status === 'late').length;
+    const absentCount = filteredRecords.filter(r => r.status === 'absent').length;
+    const total = filteredRecords.length || 1;
+
+    // Calendar view
+    const calendarData = useMemo(() => {
+        if (!isParent && !isStudent) return [];
+        const days = [];
+        const now = new Date();
+        for (let d = 27; d >= 0; d--) {
+            const date = new Date(now);
+            date.setDate(date.getDate() - d);
+            const dateStr = date.toISOString().split('T')[0];
+            const record = filteredRecords.find(r => r.date === dateStr);
+            days.push({
+                date: date.getDate(),
+                day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()],
+                status: date.getDay() === 0 ? 'holiday' : record ? record.status : 'holiday',
+            });
+        }
+        return days;
+    }, [filteredRecords, isParent, isStudent]);
 
     return (
         <>
             <div className="stats-grid">
                 <div className="stat-card green">
                     <div className="stat-icon green"><CheckCircle size={24} /></div>
-                    <div className="stat-info"><h4>Present</h4><div className="stat-value">{presentCount}</div>
-                        <span className="stat-change up">{Math.round(presentCount / total * 100)}%</span>
-                    </div>
+                    <div className="stat-info"><h4>Present</h4><div className="stat-value">{presentCount}</div><span className="stat-change up">{Math.round(presentCount / total * 100)}%</span></div>
                 </div>
                 <div className="stat-card gold">
                     <div className="stat-icon gold"><Clock size={24} /></div>
@@ -148,20 +124,17 @@ export default function Attendance() {
                 </div>
                 <div className="stat-card navy">
                     <div className="stat-icon navy"><CalendarCheck size={24} /></div>
-                    <div className="stat-info"><h4>Total</h4><div className="stat-value">{filtered.length}</div></div>
+                    <div className="stat-info"><h4>Total Records</h4><div className="stat-value">{filteredRecords.length}</div></div>
                 </div>
             </div>
 
-            {/* Student/Parent Calendar */}
-            {(isParent || isStudent) && calendarData.length > 0 && (
+            {(isParent || isStudent) && (
                 <div className="card" style={{ marginBottom: 24 }}>
                     <div className="card-header"><h3>Attendance Calendar (Last 28 Days)</h3></div>
                     <div className="card-body">
                         <div className="attendance-grid">
                             {calendarData.map((d, i) => (
-                                <div key={i} className={`attendance-day ${d.status}`} title={`${d.day} ${d.date} — ${d.status}`}>
-                                    {d.date}
-                                </div>
+                                <div key={i} className={`attendance-day ${d.status}`} title={`${d.day} ${d.date} — ${d.status}`}>{d.date}</div>
                             ))}
                         </div>
                         <div style={{ display: 'flex', gap: 16, marginTop: 16, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -174,119 +147,101 @@ export default function Attendance() {
                 </div>
             )}
 
-            {/* Admin controls */}
-            {isAdmin && (
-                <>
-                    <div className="search-bar">
-                        <div className="search-input">
-                            <Search />
-                            <input type="text" placeholder="Search student..." value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)} />
-                        </div>
-                        <div className="select-wrapper">
-                            <select value={selectedStandard} onChange={(e) => setSelectedStandard(e.target.value)}>
-                                <option value="All">All Standards</option>
-                                {standards.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
-                        </div>
-                        <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-                            style={{ padding: '10px 14px', border: '2px solid var(--border)', borderRadius: 'var(--radius-md)' }} />
-                        {!editMode ? (
-                            <button className="btn-gold btn-small" onClick={() => setEditMode(true)}>
-                                <CalendarCheck size={16} /> Mark Attendance
-                            </button>
-                        ) : (
-                            <button className="btn-primary btn-small" onClick={handleSaveAttendance} disabled={saving}>
-                                <Save size={16} /> {saving ? 'Saving...' : 'Save All'}
-                            </button>
-                        )}
+            {!isParent && !isStudent && (
+                <div className="search-bar" style={{ flexWrap: 'wrap', gap: 8 }}>
+                    <div className="search-input">
+                        <Search />
+                        <input type="text" placeholder="Search student..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
-
-                    <div className="card">
-                        <div className="card-header">
-                            <h3>Attendance — {selectedDate}</h3>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                                <button className="btn-secondary btn-small" onClick={() => {
-                                    exportCSV('attendance',
-                                        ['Name', 'Roll No', 'Standard', 'Date', 'Status'],
-                                        filtered.map(s => [s.name, s.roll_no, s.standards?.name, selectedDate, localStatus[s.id] || s.attendance?.[0]?.status || 'not marked']));
-                                    showToast('CSV exported!');
-                                }}><Download size={14} /> CSV</button>
-                                <button className="btn-gold btn-small" onClick={() => {
-                                    generateAttendanceReportPDF(filtered.map(s => ({
-                                        date: selectedDate, studentName: s.name, standard: s.standards?.name || '',
-                                        status: localStatus[s.id] || s.attendance?.[0]?.status || 'not marked', arrivalTime: s.attendance?.[0]?.arrival_time || ''
-                                    })), selectedStandard !== 'All' ? standards.find(st => st.id === parseInt(selectedStandard))?.name : 'All');
-                                    showToast('PDF report generated!');
-                                }}><FileText size={14} /> PDF</button>
-                            </div>
-                        </div>
-                        <div className="card-body" style={{ padding: 0 }}>
-                            {loading ? (
-                                <div className="empty-state"><div className="spinner" /><p>Loading...</p></div>
-                            ) : (
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table className="data-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Student</th>
-                                                <th>Roll No</th>
-                                                <th>Standard</th>
-                                                <th>Status</th>
-                                                {editMode && <th>Mark</th>}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filtered.map(s => {
-                                                const currentStatus = localStatus[s.id] || s.attendance?.[0]?.status || null;
-                                                return (
-                                                    <tr key={s.id}>
-                                                        <td style={{ fontWeight: 600 }}>{s.name}</td>
-                                                        <td>{s.roll_no}</td>
-                                                        <td>{s.standards?.name}</td>
-                                                        <td>
-                                                            {currentStatus ? (
-                                                                <span className={`badge ${currentStatus}`}>{currentStatus}</span>
-                                                            ) : (
-                                                                <span style={{ color: 'var(--text-light)', fontSize: '0.85rem' }}>Not marked</span>
-                                                            )}
-                                                        </td>
-                                                        {editMode && (
-                                                            <td>
-                                                                <div style={{ display: 'flex', gap: 4 }}>
-                                                                    {['present', 'late', 'absent'].map(status => (
-                                                                        <button key={status}
-                                                                            className={`filter-chip ${currentStatus === status ? 'active' : ''}`}
-                                                                            style={{
-                                                                                minHeight: 32, padding: '4px 10px', fontSize: '0.75rem',
-                                                                                background: currentStatus === status
-                                                                                    ? (status === 'present' ? 'var(--success)' : status === 'late' ? 'var(--warning)' : 'var(--danger)')
-                                                                                    : undefined,
-                                                                                color: currentStatus === status ? 'white' : undefined,
-                                                                            }}
-                                                                            onClick={() => setStatus(s.id, status)}>
-                                                                            {status === 'present' ? 'P' : status === 'late' ? 'L' : 'A'}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </td>
-                                                        )}
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                            {!loading && filtered.length === 0 && (
-                                <div className="empty-state">
-                                    <CalendarCheck /><h3>No students found</h3><p>Try changing your filters.</p>
-                                </div>
-                            )}
-                        </div>
+                    <div className="select-wrapper">
+                        <select value={selectedStandard} onChange={(e) => setSelectedStandard(e.target.value)}>
+                            <option value="All">All Standards</option>
+                            {STANDARDS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
                     </div>
-                </>
+                    <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
+                        style={{ padding: '10px 14px', border: '2px solid var(--border)', borderRadius: 'var(--radius-md)' }} />
+                    <button className="btn-primary btn-small" onClick={() => setShowMark(!showMark)}>
+                        <Save size={14} /> {showMark ? 'Hide' : 'Mark'} Attendance
+                    </button>
+                    <button className="btn-secondary btn-small" onClick={() => {
+                        exportCSV('attendance', ['Date', 'Student', 'Standard', 'Status'],
+                            filteredRecords.map(r => [r.date, r.studentName, r.standard, r.status]));
+                        showToast('Exported!');
+                    }}><Download size={14} /> Export</button>
+                </div>
             )}
+
+            {/* Quick Mark Attendance Panel */}
+            {showMark && !isParent && !isStudent && (
+                <div className="card" style={{ marginTop: 16 }}>
+                    <div className="card-header">
+                        <h3>Mark Attendance — {selectedDate}</h3>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{todayStudents.length} students</span>
+                    </div>
+                    <div className="card-body">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+                            {todayStudents.map(s => {
+                                const status = getStatus(s.id);
+                                return (
+                                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{s.name}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.standard} · {s.id}</div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 4 }}>
+                                            {['present', 'late', 'absent'].map(status => (
+                                                <button key={status}
+                                                    onClick={() => handleMark(s.id, status)}
+                                                    disabled={saving}
+                                                    title={status}
+                                                    style={{
+                                                        width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
+                                                        background: getStatus(s.id) === status
+                                                            ? status === 'present' ? 'rgba(16,185,129,0.2)' : status === 'late' ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'
+                                                            : 'var(--bg)',
+                                                        color: status === 'present' ? '#10b981' : status === 'late' ? '#f59e0b' : '#ef4444',
+                                                        fontSize: '0.7rem', fontWeight: 700,
+                                                    }}
+                                                >
+                                                    {status === 'present' ? 'P' : status === 'late' ? 'L' : 'A'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="card">
+                <div className="card-header"><h3>Attendance Records</h3></div>
+                <div className="card-body" style={{ padding: 0 }}>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table">
+                            <thead>
+                                <tr><th>Student</th><th>Standard</th><th>Date</th><th>Status</th><th>Arrival</th></tr>
+                            </thead>
+                            <tbody>
+                                {filteredRecords.slice(0, 50).map((r, i) => (
+                                    <tr key={i}>
+                                        <td style={{ fontWeight: 600 }}>{r.studentName}</td>
+                                        <td>{r.standard}</td>
+                                        <td>{r.date}</td>
+                                        <td><span className={`badge ${r.status}`}>{r.status}</span></td>
+                                        <td>{r.arrivalTime || '—'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {filteredRecords.length === 0 && (
+                        <div className="empty-state"><CalendarCheck /><h3>No records found</h3><p>Try changing filters or mark attendance above.</p></div>
+                    )}
+                </div>
+            </div>
         </>
     );
 }

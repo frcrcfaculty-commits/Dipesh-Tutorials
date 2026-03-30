@@ -3,6 +3,7 @@ import { useAuth, useData } from '../App';
 import { getTests, createTest, getTestResults, upsertTestResults, getStudents } from '../lib/api';
 import { Upload, FileSpreadsheet, FileText, Search, Download, Plus, X, CheckCircle, AlertCircle, Eye, Save } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
+import { generateTestResultReportPDF } from '../reports';
 
 export default function TestResults() {
     const { user } = useAuth();
@@ -174,11 +175,22 @@ export default function TestResults() {
                     <div className="card">
                         <div className="card-header">
                             <h3>Results ({studentSummaries.length} students)</h3>
-                            <button className="btn-secondary btn-small" onClick={() => {
-                                exportCSV('test_results', ['Student', 'Standard', 'Subjects', 'Average'],
-                                    studentSummaries.map(s => [s.name, s.standard, s.subjects.map(sub => `${sub.subject}:${sub.grade}`).join('; '), s.average]));
-                                showToast('Exported!');
-                            }}><Download size={14} /> Export</button>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                                <button className="btn-secondary btn-small" onClick={() => {
+                                    exportCSV('test_results', ['Student', 'Standard', 'Subjects', 'Average'],
+                                        studentSummaries.map(s => [s.name, s.standard, s.subjects.map(sub => `${sub.subject}:${sub.grade}`).join('; '), s.average]));
+                                    showToast('CSV exported!');
+                                }}><Download size={14} /> CSV</button>
+                                <button className="btn-gold btn-small" onClick={() => {
+                                    generateTestResultReportPDF(studentSummaries.flatMap(s =>
+                                        s.subjects.map(sub => ({
+                                            studentName: s.name, testName: tests.find(t => t.id === selectedTest)?.name || '',
+                                            subject: sub.subject, score: sub.marks, maxScore: sub.max, percentage: sub.percentage
+                                        }))
+                                    ), selectedStandard !== 'All' ? standards.find(st => st.id === parseInt(selectedStandard))?.name : 'All');
+                                    showToast('PDF report generated!');
+                                }}><FileText size={14} /> PDF</button>
+                            </div>
                         </div>
                         <div className="card-body" style={{ padding: 0 }}>
                             {loading ? <div className="empty-state"><div className="spinner" /></div> : (

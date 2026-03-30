@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth, useData } from '../App';
 import { getStudents, addStudent, updateStudent, deleteStudent } from '../lib/api';
-import { Search, Users, Download, Plus, X, Edit2, Trash2, Save, UserPlus } from 'lucide-react';
+import { Search, Users, Download, Plus, X, Edit2, Trash2, Save, UserPlus, FileText } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
+import { generateStudentReportPDF } from '../reports';
 
 const GENDERS = ['Male', 'Female', 'Other'];
 
@@ -210,12 +211,21 @@ export default function Students() {
             <div className="card">
                 <div className="card-header">
                     <h3>Students ({filtered.length})</h3>
-                    <button className="btn-secondary btn-small" onClick={() => {
-                        exportCSV('students',
-                            ['Name', 'Roll No', 'Standard', 'Gender', 'Parent', 'Phone'],
-                            filtered.map(s => [s.name, s.roll_no, s.standards?.name || '', s.gender, s.parent_name, s.parent_phone]));
-                        showToast('Student data exported!');
-                    }}><Download size={14} /> Export</button>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn-secondary btn-small" onClick={() => {
+                            exportCSV('students',
+                                ['Name', 'Roll No', 'Standard', 'Gender', 'Parent', 'Phone'],
+                                filtered.map(s => [s.name, s.roll_no, s.standards?.name || '', s.gender, s.parent_name, s.parent_phone]));
+                            showToast('CSV exported!');
+                        }}><Download size={14} /> CSV</button>
+                        <button className="btn-gold btn-small" onClick={() => {
+                            generateStudentReportPDF(filtered.map(s => ({
+                                name: s.name, standard: s.standards?.name || '', rollNo: s.roll_no,
+                                parentPhone: s.parent_phone, feeStatus: 'N/A', attendancePercent: '—'
+                            })), { standard: standardFilter !== 'All' ? standards.find(st => st.id === parseInt(standardFilter))?.name : 'All' });
+                            showToast('PDF report generated!');
+                        }}><FileText size={14} /> PDF</button>
+                    </div>
                 </div>
                 <div className="card-body" style={{ padding: 0 }}>
                     {loading ? (

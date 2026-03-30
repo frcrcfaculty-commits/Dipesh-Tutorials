@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth, useData } from '../App';
 import { getAttendanceByDate, markAttendance, getStudentAttendance } from '../lib/api';
-import { CalendarCheck, Search, CheckCircle, XCircle, Clock, Download, Save, Check } from 'lucide-react';
+import { CalendarCheck, Search, CheckCircle, XCircle, Clock, Download, Save, Check, FileText } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
+import { generateAttendanceReportPDF } from '../reports';
 
 export default function Attendance() {
     const { user } = useAuth();
@@ -204,12 +205,21 @@ export default function Attendance() {
                     <div className="card">
                         <div className="card-header">
                             <h3>Attendance — {selectedDate}</h3>
-                            <button className="btn-secondary btn-small" onClick={() => {
-                                exportCSV('attendance',
-                                    ['Name', 'Roll No', 'Standard', 'Date', 'Status'],
-                                    filtered.map(s => [s.name, s.roll_no, s.standards?.name, selectedDate, localStatus[s.id] || s.attendance?.[0]?.status || 'not marked']));
-                                showToast('Attendance exported!');
-                            }}><Download size={14} /> Export</button>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                                <button className="btn-secondary btn-small" onClick={() => {
+                                    exportCSV('attendance',
+                                        ['Name', 'Roll No', 'Standard', 'Date', 'Status'],
+                                        filtered.map(s => [s.name, s.roll_no, s.standards?.name, selectedDate, localStatus[s.id] || s.attendance?.[0]?.status || 'not marked']));
+                                    showToast('CSV exported!');
+                                }}><Download size={14} /> CSV</button>
+                                <button className="btn-gold btn-small" onClick={() => {
+                                    generateAttendanceReportPDF(filtered.map(s => ({
+                                        date: selectedDate, studentName: s.name, standard: s.standards?.name || '',
+                                        status: localStatus[s.id] || s.attendance?.[0]?.status || 'not marked', arrivalTime: s.attendance?.[0]?.arrival_time || ''
+                                    })), selectedStandard !== 'All' ? standards.find(st => st.id === parseInt(selectedStandard))?.name : 'All');
+                                    showToast('PDF report generated!');
+                                }}><FileText size={14} /> PDF</button>
+                            </div>
                         </div>
                         <div className="card-body" style={{ padding: 0 }}>
                             {loading ? (

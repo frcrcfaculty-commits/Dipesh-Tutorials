@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth, useData } from '../App';
 import { getStudents, getFeePayments, recordPayment, getAllFeePayments, getFeeStructures, getFeeStructureByStandard } from '../lib/api';
-import { IndianRupee, AlertCircle, Search, Download, Plus, X, Save, CheckCircle } from 'lucide-react';
+import { IndianRupee, AlertCircle, Search, Download, Plus, X, Save, CheckCircle, FileText } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
+import { generateFeeReportPDF } from '../reports';
 
 function ParentBilling({ user }) {
     const child = user.child;
@@ -175,11 +176,20 @@ function AdminBilling() {
             <div className="card">
                 <div className="card-header">
                     <h3>Fee Records ({filtered.length})</h3>
-                    <button className="btn-secondary btn-small" onClick={() => {
-                        exportCSV('fees', ['Student', 'Standard', 'Total', 'Paid', 'Balance', 'Status'],
-                            filtered.map(s => [s.name, s.standards?.name, s.totalFees, s.paidFees, s.balance, s.feeStatus]));
-                        showToast('Exported!');
-                    }}><Download size={14} /> Export</button>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn-secondary btn-small" onClick={() => {
+                            exportCSV('fees', ['Student', 'Standard', 'Total', 'Paid', 'Balance', 'Status'],
+                                filtered.map(s => [s.name, s.standards?.name, s.totalFees, s.paidFees, s.balance, s.feeStatus]));
+                            showToast('CSV exported!');
+                        }}><Download size={14} /> CSV</button>
+                        <button className="btn-gold btn-small" onClick={() => {
+                            generateFeeReportPDF(filtered.map(s => ({
+                                name: s.name, standard: s.standards?.name || '', totalFees: s.totalFees,
+                                paidFees: s.paidFees, feeStatus: s.feeStatus
+                            })));
+                            showToast('PDF report generated!');
+                        }}><FileText size={14} /> PDF</button>
+                    </div>
                 </div>
                 <div className="card-body" style={{ padding: 0 }}>
                     {loading ? <div className="empty-state"><div className="spinner" /></div> : (

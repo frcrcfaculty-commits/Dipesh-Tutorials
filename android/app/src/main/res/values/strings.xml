@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dipesh Tutorials</string>
+    <string name="title_activity_main">Dipesh Tutorials</string>
+    <string name="package_name">com.dipeshtutorials.app</string>
+    <string name="custom_url_scheme">com.dipeshtutorials.app</string>
+</resources>

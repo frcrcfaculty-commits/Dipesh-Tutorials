@@ -1,157 +1,173 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { GraduationCap, Mail, Lock, Users, BookOpen, Shield, Crown, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
-
-const ROLES = [
-    { id: 'parent', label: 'Parent', icon: Users, email: 'parent@demo.com' },
-    { id: 'student', label: 'Student', icon: BookOpen, email: 'student@demo.com' },
-    { id: 'admin', label: 'Admin Staff', icon: Shield, email: 'admin@demo.com' },
-    { id: 'superadmin', label: 'Super Admin', icon: Crown, email: 'superadmin@demo.com' },
-];
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
-    const { login, firebaseLogin } = useAuth();
     const navigate = useNavigate();
-    const [selectedRole, setSelectedRole] = useState('parent');
-    const [email, setEmail] = useState('parent@demo.com');
-    const [password, setPassword] = useState('parent123');
-    const [error, setError] = useState('');
+    const { login } = useAuth();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-
-    const handleRoleSelect = (role) => {
-        setSelectedRole(role.id);
-        setEmail(role.email);
-        const passwords = { parent: 'parent123', student: 'student123', admin: 'admin123', superadmin: 'super123' };
-        setPassword(passwords[role.id]);
-        setError('');
-    };
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        if (!email || !password) return;
         setError('');
+        setLoading(true);
 
-        // Try Firebase auth first, fall back to demo login
-        if (firebaseLogin) {
-            try {
-                const result = await firebaseLogin(email, password);
-                if (result.success) {
-                    navigate('/');
-                    return;
-                } else {
-                    // Fall back to demo login if Firebase not configured
-                    const demoResult = login(email, password);
-                    if (demoResult.success) {
-                        navigate('/');
-                        return;
-                    } else {
-                        setError(result.error || 'Login failed');
-                    }
-                }
-            } catch (err) {
-                // Firebase not configured — use demo login
-                const result = login(email, password);
-                if (result.success) {
-                    navigate('/');
-                    return;
-                } else {
-                    setError(result.error || 'Login failed');
-                }
-            }
-        } else {
-            // Demo mode
-            const result = login(email, password);
+        try {
+            const result = await login(email, password);
             if (result.success) {
                 navigate('/');
             } else {
-                setError(result.error);
+                setError(result.error || 'Login failed');
             }
+        } catch (err) {
+            setError('An unexpected error occurred');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (
-        <div className="login-page">
-            <div className="login-card">
-                <div className="login-brand">
-                    <div className="brand-icon">
-                        <GraduationCap />
-                    </div>
-                    <h1>Dipesh Tutorials</h1>
-                    <p className="tagline">Education with Perfection</p>
-                    <p style={{ marginTop: 8, fontSize: '0.8rem', color: '#6B7280' }}>
-                        Sign in to your account
-                    </p>
+        <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #0A2351 0%, #122D64 50%, #0A2351 100%)',
+            padding: 20,
+        }}>
+            <div style={{
+                width: '100%',
+                maxWidth: 420,
+                background: 'var(--card-bg)',
+                borderRadius: 20,
+                padding: '40px 36px',
+                boxShadow: '0 25px 60px rgba(0,0,0,0.4)',
+                border: '1px solid rgba(255,255,255,0.06)',
+            }}>
+                {/* Logo / Branding */}
+                <div style={{ textAlign: 'center', marginBottom: 32 }}>
+                    <div style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 16,
+                        background: 'linear-gradient(135deg, #0A2351, #B6922E)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 16px',
+                        fontSize: '1.8rem',
+                        fontWeight: 800,
+                        color: 'white',
+                        fontFamily: 'var(--font-heading)',
+                    }}>DT</div>
+                    <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--navy)', marginBottom: 4, fontFamily: 'var(--font-heading)' }}>Dipesh Tutorials</h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Sign in to your account</p>
                 </div>
 
-                <div className="role-selector">
-                    {ROLES.map(role => (
-                        <button
-                            key={role.id}
-                            className={`role-btn ${selectedRole === role.id ? 'active' : ''}`}
-                            onClick={() => handleRoleSelect(role)}
-                            type="button"
-                        >
-                            <role.icon />
-                            {role.label}
-                        </button>
-                    ))}
-                </div>
+                {/* Error */}
+                {error && (
+                    <div style={{
+                        background: 'rgba(239,68,68,0.08)',
+                        border: '1px solid rgba(239,68,68,0.2)',
+                        borderRadius: 10,
+                        padding: '10px 14px',
+                        marginBottom: 20,
+                        color: 'var(--danger)',
+                        fontSize: '0.875rem',
+                        textAlign: 'center',
+                    }}>
+                        {error}
+                    </div>
+                )}
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <div className="form-group">
-                        <label>Email Address</label>
-                        <div className="input-wrapper">
-                            <Mail />
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="Enter your email"
-                                required
-                            />
-                        </div>
+                        <label style={labelStyle}>Email Address</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="you@example.com"
+                            required
+                            autoComplete="email"
+                            style={inputStyle}
+                        />
                     </div>
 
                     <div className="form-group">
-                        <label>Password</label>
-                        <div className="input-wrapper">
-                            <Lock />
+                        <label style={labelStyle}>Password</label>
+                        <div style={{ position: 'relative' }}>
                             <input
-                                type="password"
+                                type={showPassword ? 'text' : 'password'}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Enter your password"
+                                placeholder="••••••••"
                                 required
+                                autoComplete="current-password"
+                                style={{ ...inputStyle, paddingRight: 44 }}
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: 12,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: 'var(--text-muted)',
+                                    display: 'flex',
+                                    padding: 0,
+                                }}
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
                         </div>
                     </div>
 
-                    {error && (
-                        <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <AlertCircle size={14} /> {error}
-                        </p>
-                    )}
-
-                    <button type="submit" className="btn-primary" disabled={loading}>
-                        {loading ? (
-                            <>
-                                <Loader2 size={18} className="spin" /> Signing in...
-                            </>
-                        ) : (
-                            <>Sign In <ArrowRight size={18} /></>
-                        )}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="btn-primary"
+                        style={{ width: '100%', padding: '13px', fontSize: '1rem', marginTop: 4, opacity: loading ? 0.7 : 1 }}
+                    >
+                        {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
 
-                <div style={{ textAlign: 'center', marginTop: 20, fontSize: '0.75rem', color: '#9CA3AF' }}>
-                    <p>Demo Credentials — Select a role above to auto-fill</p>
-                    <p style={{ marginTop: 4, color: '#6B7280' }}>
-                        Configure Firebase in <code>.env</code> for real authentication
-                    </p>
-                </div>
+                <p style={{ textAlign: 'center', marginTop: 24, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Contact your admin if you need access
+                </p>
             </div>
         </div>
     );
 }
+
+const labelStyle = {
+    display: 'block',
+    marginBottom: 6,
+    fontWeight: 600,
+    fontSize: '0.875rem',
+    color: 'var(--text)',
+};
+
+const inputStyle = {
+    width: '100%',
+    padding: '11px 14px',
+    borderRadius: 10,
+    border: '1.5px solid var(--border)',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text)',
+    fontSize: '0.9rem',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    boxSizing: 'border-box',
+};

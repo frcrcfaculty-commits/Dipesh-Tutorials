@@ -1,266 +1,118 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
-import { NOTIFICATIONS } from '../data';
-import { Bell, CalendarCheck, IndianRupee, BookOpen, Megaphone, FileText, Send, X, Plus, CheckCircle } from 'lucide-react';
-
-const TYPE_ICONS = { fee: IndianRupee, attendance: CalendarCheck, resource: BookOpen, exam: FileText, general: Megaphone, report: FileText };
-const TYPE_COLORS = { fee: 'gold', attendance: 'green', resource: 'blue', exam: 'navy', general: 'navy', report: 'gold' };
-
-const TYPE_MAP = {
-    'General Announcement': 'general',
-    'Fee Reminder': 'fee',
-    'Attendance Alert': 'attendance',
-    'Resource Update': 'resource',
-    'Exam Notification': 'exam',
-};
-
-const AUDIENCE_OPTIONS = ['All Parents', 'All Students', 'Specific Standard', 'All Staff'];
-const AUDIENCE_ROLE_MAP = {
-    'All Parents': ['parent'],
-    'All Students': ['student'],
-    'Specific Standard': ['student', 'parent'],
-    'All Staff': ['admin'],
-};
-
-// localStorage key for persisted notifications
-const STORAGE_KEY = 'dipesh_sent_notifications';
-
-function loadSentNotifications() {
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        return stored ? JSON.parse(stored) : [];
-    } catch {
-        return [];
-    }
-}
-
-function saveSentNotifications(notifications) {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
-    } catch {
-        // localStorage full or unavailable
-    }
-}
+import { getNotifications, createNotification, markNotificationRead } from '../lib/api';
+import { Bell, Send, CheckCircle } from 'lucide-react';
+import { showToast } from '../utils';
 
 export default function Notifications() {
     const { user } = useAuth();
-    const isAdmin = user.role === 'admin' || user.role === 'superadmin';
-    const [showCompose, setShowCompose] = useState(false);
-    const [readState, setReadState] = useState({});
-    const [sentSuccess, setSentSuccess] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showForm, setShowForm] = useState(false);
+    const [sending, setSending] = useState(false);
+    const [form, setForm] = useState({ title: '', message: '', type: 'general', target_roles: ['student', 'parent'] });
 
-    // Load persisted notifications from localStorage
-    const [sentNotifications, setSentNotifications] = useState(() => loadSentNotifications());
-
-    // Compose form state
-    const [title, setTitle] = useState('');
-    const [message, setMessage] = useState('');
-    const [audience, setAudience] = useState(['All Parents']);
-    const [type, setType] = useState('General Announcement');
-
-    // Merge persisted sent notifications with static demo data
-    const allNotifications = [...sentNotifications, ...NOTIFICATIONS];
-    const myNotifications = allNotifications.filter(n => n.for.includes(user.role));
-
-    const toggleRead = (id) => {
-        setReadState(prev => ({ ...prev, [id]: !prev[id] }));
+    const load = async () => {
+        setLoading(true);
+        try {
+            const data = await getNotifications(user.role, 50);
+            setNotifications(data || []);
+        } catch (err) {
+            showToast('Failed to load: ' + err.message, 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const toggleAudience = (option) => {
-        setAudience(prev =>
-            prev.includes(option) ? prev.filter(a => a !== option) : [...prev, option]
-        );
+    useEffect(() => { load(); }, []);
+
+    const handleSend = async (e) => {
+        e.preventDefault();
+        setSending(true);
+        try {
+            await createNotification({ ...form, sent_by: user.id });
+            showToast('Notification sent!');
+            setShowForm(false);
+            setForm({ title: '', message: '', type: 'general', target_roles: ['student', 'parent'] });
+            load();
+        } catch (err) {
+            showToast(err.message || 'Failed to send', 'error');
+        } finally {
+            setSending(false);
+        }
     };
 
-    const resetForm = () => {
-        setTitle('');
-        setMessage('');
-        setAudience(['All Parents']);
-        setType('General Announcement');
-        setSentSuccess(false);
+    const handleRead = async (id) => {
+        try {
+            await markNotificationRead(id, user.id);
+            setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        } catch (_) {}
     };
 
-    const handleSend = () => {
-        if (!title.trim() || !message.trim()) return;
-        if (audience.length === 0) return;
-
-        // Build the target roles from selected audience
-        const targetRoles = new Set();
-        audience.forEach(a => {
-            (AUDIENCE_ROLE_MAP[a] || []).forEach(r => targetRoles.add(r));
-        });
-        // Admin/superadmin always see their own notifications
-        targetRoles.add('admin');
-        targetRoles.add('superadmin');
-
-        const newNotification = {
-            id: Date.now(),
-            title: title.trim(),
-            message: message.trim(),
-            type: TYPE_MAP[type] || 'general',
-            for: Array.from(targetRoles),
-            time: 'Just now',
-            read: false,
-            sentBy: user.name || user.role,
-            sentAt: new Date().toISOString(),
-        };
-
-        const updated = [newNotification, ...sentNotifications];
-        setSentNotifications(updated);
-        saveSentNotifications(updated);
-        setSentSuccess(true);
-
-        // Auto-close after 1.5s
-        setTimeout(() => {
-            setShowCompose(false);
-            resetForm();
-        }, 1500);
-    };
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
     return (
         <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <div>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                        {myNotifications.filter(n => !(readState[n.id] ?? n.read)).length} unread notifications
-                    </p>
+            <div className="stats-grid">
+                <div className="stat-card navy">
+                    <div className="stat-icon navy"><Bell size={24} /></div>
+                    <div className="stat-info"><h4>Total</h4><div className="stat-value">{notifications.length}</div></div>
                 </div>
-                {isAdmin && (
-                    <button className="btn-gold btn-small" onClick={() => { resetForm(); setShowCompose(true); }}>
-                        <Plus size={14} /> Send Notification
-                    </button>
-                )}
+                <div className="stat-card gold">
+                    <div className="stat-icon gold"><Bell size={24} /></div>
+                    <div className="stat-info"><h4>Unread</h4><div className="stat-value">{notifications.filter(n => !n.read).length}</div></div>
+                </div>
             </div>
 
-            <div className="notification-list">
-                {myNotifications.map(n => {
-                    const Icon = TYPE_ICONS[n.type] || Bell;
-                    const colorClass = TYPE_COLORS[n.type] || 'navy';
-                    const isRead = readState[n.id] ?? n.read;
-
-                    return (
-                        <div
-                            key={n.id}
-                            className={`notification-item ${isRead ? '' : 'unread'}`}
-                            onClick={() => toggleRead(n.id)}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <div className={`notif-icon stat-icon ${colorClass}`}>
-                                <Icon size={18} />
-                            </div>
-                            <div className="notif-content">
-                                <h4>{n.title}</h4>
-                                <p>{n.message}</p>
-                                {n.sentBy && (
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginTop: 2, display: 'block' }}>
-                                        Sent by {n.sentBy}
-                                    </span>
-                                )}
-                            </div>
-                            <span className="notif-time">{n.time}</span>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {myNotifications.length === 0 && (
-                <div className="empty-state">
-                    <Bell /><h3>No notifications</h3><p>You're all caught up!</p>
+            <div className="card">
+                <div className="card-header">
+                    <h3>Notifications</h3>
+                    {isAdmin && (
+                        <button className="btn-primary btn-small" onClick={() => setShowForm(!showForm)}>
+                            <Send size={14} /> Send Notification
+                        </button>
+                    )}
                 </div>
-            )}
 
-            {/* Compose Notification Modal */}
-            {showCompose && (
-                <div className="modal-overlay" onClick={() => { setShowCompose(false); resetForm(); }}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Send Notification</h2>
-                            <button onClick={() => { setShowCompose(false); resetForm(); }} style={{ background: 'none', color: 'var(--text-muted)' }}><X size={20} /></button>
-                        </div>
-
-                        {sentSuccess ? (
-                            <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-                                <CheckCircle size={48} color="var(--success)" style={{ marginBottom: 12 }} />
-                                <h3 style={{ color: 'var(--navy)', marginBottom: 4 }}>Notification Sent!</h3>
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                                    Sent to {audience.join(', ')}
-                                </p>
+                {showForm && isAdmin && (
+                    <div className="card-body" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 24, marginBottom: 16 }}>
+                        <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div className="form-row">
+                                <div className="form-group"><label>Title *</label><input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Notification title" /></div>
+                                <div className="form-group"><label>Type</label>
+                                    <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
+                                        <option value="general">General</option><option value="fee">Fee</option><option value="attendance">Attendance</option><option value="resource">Resource</option><option value="exam">Exam</option>
+                                    </select>
+                                </div>
                             </div>
-                        ) : (
-                            <>
-                                <div className="modal-body">
-                                    <div className="form-group">
-                                        <label>Title</label>
-                                        <div className="input-wrapper">
-                                            <Bell />
-                                            <input
-                                                placeholder="Notification title..."
-                                                value={title}
-                                                onChange={e => setTitle(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Message</label>
-                                        <textarea
-                                            className="form-textarea"
-                                            placeholder="Write your notification message..."
-                                            value={message}
-                                            onChange={e => setMessage(e.target.value)}
-                                            rows={3}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Send To</label>
-                                        <div className="filter-chips">
-                                            {AUDIENCE_OPTIONS.map(option => (
-                                                <button
-                                                    key={option}
-                                                    className={`filter-chip ${audience.includes(option) ? 'active' : ''}`}
-                                                    onClick={() => toggleAudience(option)}
-                                                >
-                                                    {option}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        {audience.length === 0 && (
-                                            <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: 4 }}>
-                                                Select at least one audience
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Type</label>
-                                        <div className="select-wrapper">
-                                            <select value={type} onChange={e => setType(e.target.value)}>
-                                                {Object.keys(TYPE_MAP).map(t => (
-                                                    <option key={t} value={t}>{t}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button className="btn-secondary" onClick={() => { setShowCompose(false); resetForm(); }}>Cancel</button>
-                                    <button
-                                        className="btn-primary"
-                                        style={{
-                                            width: 'auto',
-                                            marginTop: 0,
-                                            opacity: (!title.trim() || !message.trim() || audience.length === 0) ? 0.5 : 1,
-                                            cursor: (!title.trim() || !message.trim() || audience.length === 0) ? 'not-allowed' : 'pointer',
-                                        }}
-                                        onClick={handleSend}
-                                        disabled={!title.trim() || !message.trim() || audience.length === 0}
-                                    >
-                                        <Send size={16} /> Send Notification
-                                    </button>
-                                </div>
-                            </>
-                        )}
+                            <div className="form-group"><label>Message *</label><textarea required rows={3} value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))} placeholder="Write your message..." /></div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <button type="submit" className="btn-primary btn-small" disabled={sending}>{sending ? 'Sending...' : 'Send'}</button>
+                                <button type="button" className="btn-secondary btn-small" onClick={() => setShowForm(false)}>Cancel</button>
+                            </div>
+                        </form>
                     </div>
+                )}
+
+                <div className="card-body" style={{ padding: 0 }}>
+                    {loading ? <div style={{ textAlign: 'center', padding: 48 }}><div className="loading-spinner" /></div> :
+                        notifications.length === 0 ? <p style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>No notifications yet.</p> :
+                            notifications.map(n => (
+                                <div key={n.id} style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 12, background: n.read ? 'transparent' : 'rgba(182,146,46,0.04)' }} onClick={() => handleRead(n.id)}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                            <span className={`badge ${n.type || 'general'}`}>{n.type || 'general'}</span>
+                                            {!n.read && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />}
+                                        </div>
+                                        <strong style={{ fontSize: '0.95rem' }}>{n.title}</strong>
+                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>{n.message}</p>
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginTop: 4 }}>{n.created_at ? new Date(n.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</p>
+                                    </div>
+                                </div>
+                            ))
+                    }
                 </div>
-            )}
+            </div>
         </>
     );
 }

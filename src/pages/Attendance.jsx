@@ -1,244 +1,160 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useAuth } from '../App';
-import { ATTENDANCE_RECORDS as MOCK_ATTENDANCE, STUDENTS as MOCK_STUDENTS, STANDARDS } from '../data';
-import { subscribeAttendance, markAttendance, subscribeStudents } from '../firebase';
-import { CalendarCheck, Search, CheckCircle, XCircle, Clock, Download, Save, Loader2 } from 'lucide-react';
-import { exportCSV, showToast } from '../utils';
+import React, { useState, useEffect } from 'react';
+import { getAttendanceByDate, getStandards, markAttendance, getStudents } from '../lib/api';
+import { Calendar, Loader2 } from 'lucide-react';
+import { showToast } from '../utils';
+
+function formatDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function todayStr() {
+    return formatDate(new Date());
+}
 
 export default function Attendance() {
-    const { user } = useAuth();
-    const [selectedStandard, setSelectedStandard] = useState('All');
-    const todayStr = new Date().toISOString().split('T')[0];
-    const [selectedDate, setSelectedDate] = useState(todayStr);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [attendanceRecords, setAttendanceRecords] = useState({});
-    const [students, setStudents] = useState(MOCK_STUDENTS);
+    const [selectedDate, setSelectedDate] = useState(todayStr());
+    const [students, setStudents] = useState([]);
+    const [attendanceMap, setAttendanceMap] = useState({});
     const [saving, setSaving] = useState(false);
-    const [showMark, setShowMark] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [standardFilter, setStandardFilter] = useState('All');
+    const [standards, setStandards] = useState([]);
+    const [selectedStandardId, setSelectedStandardId] = useState(null);
 
-    const isParent = user.role === 'parent';
-    const isStudent = user.role === 'student';
-
-    // Subscribe to real data
-    useEffect(() => {
-        let u1, u2;
+    const loadData = async () => {
+        setLoading(true);
         try {
-            u1 = subscribeAttendance(selectedDate, (data) => { if (data) setAttendanceRecords(data); });
-            u2 = subscribeStudents((data) => { if (data && data.length > 0) setStudents(data); });
-        } catch (_) {}
-        return () => { if (u1) u1(); if (u2) u2(); };
-    }, [selectedDate]);
+            const [studs, stds, att] = await Promise.all([
+                getStudents(),
+                getStandards(),
+                getAttendanceByDate(selectedDate, selectedStandardId || undefined),
+            ]);
+            setStudents(studs || []);
+            setStandards(stds || []);
 
-    // Current day's attendance for admin marking
-    const todayStudents = useMemo(() => {
-        if (isParent || isStudent) return [];
-        return students.filter(s => selectedStandard === 'All' || s.standard === selectedStandard);
-    }, [students, selectedStandard, isParent, isStudent]);
-
-    const handleMark = async (studentId, status) => {
-        const student = students.find(s => s.id === studentId);
-        setSaving(true);
-        try {
-            await markAttendance(selectedDate, studentId, status, student?.standard || selectedStandard);
-            setAttendanceRecords(prev => ({
-                ...prev,
-                [studentId]: { ...prev[studentId], status }
-            }));
+            const map = {};
+            (att || []).forEach(a => {
+                if (a.attendance?.[0]) {
+                    map[a.id] = a.attendance[0].status;
+                }
+            });
+            setAttendanceMap(map);
         } catch (err) {
-            // Demo fallback
-            setAttendanceRecords(prev => ({
-                ...prev,
-                [studentId]: { ...prev[studentId], status }
-            }));
-            showToast(`Marked ${status} (demo)`);
+            showToast('Failed to load: ' + err.message, 'error');
+        } finally {
+            setLoading(false);
         }
-        setSaving(false);
     };
 
-    const getStatus = (studentId) => attendanceRecords[studentId]?.status || null;
+    useEffect(() => { loadData(); }, [selectedDate, selectedStandardId]);
 
-    // Filter records for display
-    const filteredRecords = useMemo(() => {
-        let records = MOCK_ATTENDANCE;
+    const filteredStudents = selectedStandardId
+        ? students.filter(s => s.standard_id === selectedStandardId)
+        : students;
 
-        if (isParent) {
-            const childId = user.child?.id || user.childId || 'STU0001';
-            records = records.filter(r => r.studentId === childId);
-        } else if (isStudent) {
-            const studentId = user.student?.id || user.studentId || 'STU0001';
-            records = records.filter(r => r.studentId === studentId);
-        } else {
-            if (selectedStandard !== 'All') {
-                records = records.filter(r => r.standard === selectedStandard);
+    const handleMark = async (studentId, status) => {
+        setSaving(true);
+        try {
+            await markAttendance(studentId, selectedDate, status);
+            setAttendanceMap(prev => ({ ...prev, [studentId]: status }));
+            showToast('Attendance saved');
+        } catch (err) {
+            showToast(err.message || 'Failed to save', 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleMarkAll = async (status) => {
+        setSaving(true);
+        try {
+            for (const s of filteredStudents) {
+                await markAttendance(s.id, selectedDate, status);
+                setAttendanceMap(prev => ({ ...prev, [s.id]: status }));
             }
-            if (selectedDate) {
-                records = records.filter(r => r.date === selectedDate);
-            }
+            showToast(`All marked as ${status}`);
+        } catch (err) {
+            showToast(err.message, 'error');
+        } finally {
+            setSaving(false);
         }
+    };
 
-        if (searchQuery) {
-            records = records.filter(r => r.studentName.toLowerCase().includes(searchQuery.toLowerCase()));
-        }
-
-        return records;
-    }, [selectedStandard, selectedDate, searchQuery, isParent, isStudent, user]);
-
-    const presentCount = filteredRecords.filter(r => r.status === 'present').length;
-    const lateCount = filteredRecords.filter(r => r.status === 'late').length;
-    const absentCount = filteredRecords.filter(r => r.status === 'absent').length;
-    const total = filteredRecords.length || 1;
-
-    // Calendar view
-    const calendarData = useMemo(() => {
-        if (!isParent && !isStudent) return [];
-        const days = [];
-        const now = new Date();
-        for (let d = 27; d >= 0; d--) {
-            const date = new Date(now);
-            date.setDate(date.getDate() - d);
-            const dateStr = date.toISOString().split('T')[0];
-            const record = filteredRecords.find(r => r.date === dateStr);
-            days.push({
-                date: date.getDate(),
-                day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()],
-                status: date.getDay() === 0 ? 'holiday' : record ? record.status : 'holiday',
-            });
-        }
-        return days;
-    }, [filteredRecords, isParent, isStudent]);
+    const present = filteredStudents.filter(s => attendanceMap[s.id] === 'present').length;
+    const late = filteredStudents.filter(s => attendanceMap[s.id] === 'late').length;
+    const absent = filteredStudents.filter(s => attendanceMap[s.id] === 'absent').length;
 
     return (
         <>
             <div className="stats-grid">
                 <div className="stat-card green">
-                    <div className="stat-icon green"><CheckCircle size={24} /></div>
-                    <div className="stat-info"><h4>Present</h4><div className="stat-value">{presentCount}</div><span className="stat-change up">{Math.round(presentCount / total * 100)}%</span></div>
+                    <div className="stat-icon green"><span style={{ fontSize: '1.5rem' }}>✓</span></div>
+                    <div className="stat-info"><h4>Present</h4><div className="stat-value">{present}</div></div>
                 </div>
                 <div className="stat-card gold">
-                    <div className="stat-icon gold"><Clock size={24} /></div>
-                    <div className="stat-info"><h4>Late</h4><div className="stat-value">{lateCount}</div></div>
+                    <div className="stat-icon gold"><span style={{ fontSize: '1.5rem' }}>◐</span></div>
+                    <div className="stat-info"><h4>Late</h4><div className="stat-value">{late}</div></div>
                 </div>
                 <div className="stat-card red">
-                    <div className="stat-icon red"><XCircle size={24} /></div>
-                    <div className="stat-info"><h4>Absent</h4><div className="stat-value">{absentCount}</div></div>
+                    <div className="stat-icon red"><span style={{ fontSize: '1.5rem' }}>✗</span></div>
+                    <div className="stat-info"><h4>Absent</h4><div className="stat-value">{absent}</div></div>
                 </div>
                 <div className="stat-card navy">
-                    <div className="stat-icon navy"><CalendarCheck size={24} /></div>
-                    <div className="stat-info"><h4>Total Records</h4><div className="stat-value">{filteredRecords.length}</div></div>
+                    <div className="stat-icon navy"><Calendar size={24} /></div>
+                    <div className="stat-info"><h4>Date</h4><div className="stat-value" style={{ fontSize: '1rem' }}>{selectedDate}</div></div>
                 </div>
             </div>
 
-            {(isParent || isStudent) && (
-                <div className="card" style={{ marginBottom: 24 }}>
-                    <div className="card-header"><h3>Attendance Calendar (Last 28 Days)</h3></div>
-                    <div className="card-body">
-                        <div className="attendance-grid">
-                            {calendarData.map((d, i) => (
-                                <div key={i} className={`attendance-day ${d.status}`} title={`${d.day} ${d.date} — ${d.status}`}>{d.date}</div>
-                            ))}
-                        </div>
-                        <div style={{ display: 'flex', gap: 16, marginTop: 16, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: 'rgba(16,185,129,0.15)' }} /> Present</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: 'rgba(245,158,11,0.15)' }} /> Late</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: 'rgba(239,68,68,0.15)' }} /> Absent</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: 'var(--bg)' }} /> Holiday</span>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {!isParent && !isStudent && (
-                <div className="search-bar" style={{ flexWrap: 'wrap', gap: 8 }}>
-                    <div className="search-input">
-                        <Search />
-                        <input type="text" placeholder="Search student..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                    </div>
-                    <div className="select-wrapper">
-                        <select value={selectedStandard} onChange={(e) => setSelectedStandard(e.target.value)}>
-                            <option value="All">All Standards</option>
-                            {STANDARDS.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </div>
-                    <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-                        style={{ padding: '10px 14px', border: '2px solid var(--border)', borderRadius: 'var(--radius-md)' }} />
-                    <button className="btn-primary btn-small" onClick={() => setShowMark(!showMark)}>
-                        <Save size={14} /> {showMark ? 'Hide' : 'Mark'} Attendance
-                    </button>
-                    <button className="btn-secondary btn-small" onClick={() => {
-                        exportCSV('attendance', ['Date', 'Student', 'Standard', 'Status'],
-                            filteredRecords.map(r => [r.date, r.studentName, r.standard, r.status]));
-                        showToast('Exported!');
-                    }}><Download size={14} /> Export</button>
-                </div>
-            )}
-
-            {/* Quick Mark Attendance Panel */}
-            {showMark && !isParent && !isStudent && (
-                <div className="card" style={{ marginTop: 16 }}>
-                    <div className="card-header">
-                        <h3>Mark Attendance — {selectedDate}</h3>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{todayStudents.length} students</span>
-                    </div>
-                    <div className="card-body">
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
-                            {todayStudents.map(s => {
-                                const status = getStatus(s.id);
-                                return (
-                                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
-                                        <div>
-                                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{s.name}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.standard} · {s.id}</div>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: 4 }}>
-                                            {['present', 'late', 'absent'].map(status => (
-                                                <button key={status}
-                                                    onClick={() => handleMark(s.id, status)}
-                                                    disabled={saving}
-                                                    title={status}
-                                                    style={{
-                                                        width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
-                                                        background: getStatus(s.id) === status
-                                                            ? status === 'present' ? 'rgba(16,185,129,0.2)' : status === 'late' ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'
-                                                            : 'var(--bg)',
-                                                        color: status === 'present' ? '#10b981' : status === 'late' ? '#f59e0b' : '#ef4444',
-                                                        fontSize: '0.7rem', fontWeight: 700,
-                                                    }}
-                                                >
-                                                    {status === 'present' ? 'P' : status === 'late' ? 'L' : 'A'}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
-
             <div className="card">
-                <div className="card-header"><h3>Attendance Records</h3></div>
+                <div className="card-header">
+                    <h3>Mark Attendance — {selectedDate}</h3>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div className="select-wrapper">
+                            <select value={selectedStandardId || ''} onChange={e => setSelectedStandardId(e.target.value ? Number(e.target.value) : null)}>
+                                <option value="">All Standards</option>
+                                {standards.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text)' }} />
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            <button className="btn-gold btn-small" onClick={() => handleMarkAll('present')} disabled={saving}>All Present</button>
+                            <button className="btn-secondary btn-small" onClick={() => handleMarkAll('late')} disabled={saving}>All Late</button>
+                            <button className="btn-secondary btn-small" style={{ color: 'var(--danger)' }} onClick={() => handleMarkAll('absent')} disabled={saving}>All Absent</button>
+                        </div>
+                    </div>
+                </div>
                 <div className="card-body" style={{ padding: 0 }}>
-                    <div style={{ overflowX: 'auto' }}>
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: 48 }}><div className="loading-spinner" /></div>
+                    ) : (
                         <table className="data-table">
-                            <thead>
-                                <tr><th>Student</th><th>Standard</th><th>Date</th><th>Status</th><th>Arrival</th></tr>
-                            </thead>
+                            <thead><tr><th>Roll</th><th>Name</th><th>Standard</th><th>P</th><th>L</th><th>A</th><th>Saved</th></tr></thead>
                             <tbody>
-                                {filteredRecords.slice(0, 50).map((r, i) => (
-                                    <tr key={i}>
-                                        <td style={{ fontWeight: 600 }}>{r.studentName}</td>
-                                        <td>{r.standard}</td>
-                                        <td>{r.date}</td>
-                                        <td><span className={`badge ${r.status}`}>{r.status}</span></td>
-                                        <td>{r.arrivalTime || '—'}</td>
+                                {filteredStudents.map(s => (
+                                    <tr key={s.id}>
+                                        <td>{s.roll_no}</td>
+                                        <td style={{ fontWeight: 600 }}>{s.name}</td>
+                                        <td>{s.standards?.name}</td>
+                                        <td><button
+                                            className={`attendance-btn ${attendanceMap[s.id] === 'present' ? 'active present' : ''}`}
+                                            onClick={() => handleMark(s.id, 'present')}>P</button>
+                                        </td>
+                                        <td><button
+                                            className={`attendance-btn ${attendanceMap[s.id] === 'late' ? 'active late' : ''}`}
+                                            onClick={() => handleMark(s.id, 'late')}>L</button>
+                                        </td>
+                                        <td><button
+                                            className={`attendance-btn ${attendanceMap[s.id] === 'absent' ? 'active absent' : ''}`}
+                                            onClick={() => handleMark(s.id, 'absent')}>A</button>
+                                        </td>
+                                        <td style={{ fontSize: '0.8rem', color: attendanceMap[s.id] ? 'var(--success)' : 'var(--text-muted)' }}>
+                                            {attendanceMap[s.id] || '—'}
+                                        </td>
                                     </tr>
                                 ))}
+                                {filteredStudents.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No students found</td></tr>}
                             </tbody>
                         </table>
-                    </div>
-                    {filteredRecords.length === 0 && (
-                        <div className="empty-state"><CalendarCheck /><h3>No records found</h3><p>Try changing filters or mark attendance above.</p></div>
                     )}
                 </div>
             </div>

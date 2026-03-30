@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth, useData } from '../App';
+import { useAuth } from '../App';
+import { getStandards } from '../lib/api';
 import { getProfiles, getStudents, updateStudent } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { Users, UserPlus, Shield, Search, X, Save, Key, Mail, CheckCircle, AlertCircle, Link2 } from 'lucide-react';
@@ -10,7 +11,8 @@ const ROLE_COLORS = { superadmin: 'navy', admin: 'gold', student: 'green', paren
 
 export default function UserManagement() {
     const { user } = useAuth();
-    const { standards } = useData();
+    const [standards, setStandards] = useState([]);
+    useEffect(() => { getStandards().then(s => setStandards(s || [])).catch(() => {}); }, []);
     const [profiles, setProfiles] = useState([]);
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);

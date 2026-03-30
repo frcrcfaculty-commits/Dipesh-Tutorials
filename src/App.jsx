@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
-import { DEMO_USERS, STUDENTS } from './data';
+import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -14,6 +12,7 @@ import CourseMapping from './pages/CourseMapping';
 import Students from './pages/Students';
 import Analytics from './pages/Analytics';
 import TestResults from './pages/TestResults';
+import UserManagement from './pages/UserManagement';
 
 // ─── Auth Context ──────────────────────────
 const AuthContext = createContext(null);
@@ -21,107 +20,81 @@ export const useAuth = () => useContext(AuthContext);
 
 function AuthProvider({ children }) {
     const [user, setUser] = useState(() => {
-        const saved = localStorage.getItem('dt_user');
-        return saved ? JSON.parse(saved) : null;
+        try {
+            const saved = localStorage.getItem('dt_user');
+            return saved ? JSON.parse(saved) : null;
+        } catch { return null; }
     });
-    const [firebaseUser, setFirebaseUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Listen to Firebase auth state
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (fu) => {
-            setFirebaseUser(fu);
-            setLoading(false);
+        // Get initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                fetchProfile(session.user);
+            } else {
+                setLoading(false);
+            }
         });
-        return unsubscribe;
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+                if (session?.user) {
+                    await fetchProfile(session.user);
+                } else {
+                    setUser(null);
+                    localStorage.removeItem('dt_user');
+                    setLoading(false);
+                }
+            }
+        );
+
+        return () => subscription.unsubscribe();
+
+        async function fetchProfile(firebaseOrSupabaseUser) {
+            try {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*, students(id, name, roll_no, standards(name, id), profile_id, parent_profile_id)')
+                    .eq('id', firebaseOrSupabaseUser.id)
+                    .single();
+
+                if (profile) {
+                    const userData = {
+                        uid: firebaseOrSupabaseUser.id,
+                        email: firebaseOrSupabaseUser.email,
+                        ...profile,
+                    };
+                    setUser(userData);
+                    localStorage.setItem('dt_user', JSON.stringify(userData));
+                }
+            } catch (err) {
+                console.error('Error fetching profile:', err);
+            } finally {
+                setLoading(false);
+            }
+        }
     }, []);
 
-    const login = (email, password) => {
-        // Demo login fallback
-        const u = DEMO_USERS[email];
-        if (!u || u.password !== password) return { success: false, error: 'Invalid email or password' };
-
-        const userData = { email, ...u };
-        if (u.role === 'parent') {
-            const child = STUDENTS.find(s => s.id === u.childId);
-            if (child) userData.child = child;
-        }
-        if (u.role === 'student') {
-            const student = STUDENTS.find(s => s.id === u.studentId);
-            if (student) userData.student = student;
-        }
-        setUser(userData);
-        localStorage.setItem('dt_user', JSON.stringify(userData));
-        return { success: true };
-    };
-
-    const firebaseLogin = async (email, password) => {
+    const login = async (email, password) => {
         try {
-            const { signInWithEmailAndPassword } = await import('firebase/auth');
-            const credential = await signInWithEmailAndPassword(auth, email, password);
-            const fu = credential.user;
-
-            // Get user role from Firestore
-            const { getUserProfile } = await import('./firebase');
-            const profile = await getUserProfile(fu.uid);
-
-            const userData = {
-                uid: fu.uid,
-                email: fu.email,
-                displayName: profile?.displayName || fu.displayName || email.split('@')[0],
-                role: profile?.role || 'admin',
-                photoURL: fu.photoURL,
-                firebaseUser: true,
-            };
-            setUser(userData);
-            localStorage.setItem('dt_user', JSON.stringify(userData));
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) return { success: false, error: error.message };
             return { success: true };
         } catch (err) {
-            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-                return { success: false, error: 'Invalid email or password' };
-            }
-            if (err.code === 'auth/network-request-failed') {
-                return { success: false, error: 'Network error — check Firebase configuration' };
-            }
             return { success: false, error: err.message };
         }
     };
 
     const logout = async () => {
-        if (firebaseUser) {
-            try {
-                const { logout } = await import('./firebase');
-                await logout();
-            } catch (_) {}
-        }
+        await supabase.auth.signOut();
         setUser(null);
         localStorage.removeItem('dt_user');
     };
 
-    // Sync: if Firebase logged in but no local user, create local user from Firebase
-    useEffect(() => {
-        if (firebaseUser && !user) {
-            (async () => {
-                try {
-                    const { getUserProfile } = await import('./firebase');
-                    const profile = await getUserProfile(firebaseUser.uid);
-                    const userData = {
-                        uid: firebaseUser.uid,
-                        email: firebaseUser.email,
-                        displayName: profile?.displayName || firebaseUser.displayName || firebaseUser.email.split('@')[0],
-                        role: profile?.role || 'admin',
-                        photoURL: firebaseUser.photoURL,
-                        firebaseUser: true,
-                    };
-                    setUser(userData);
-                    localStorage.setItem('dt_user', JSON.stringify(userData));
-                } catch (_) {}
-            })();
-        }
-    }, [firebaseUser, user]);
-
     return (
-        <AuthContext.Provider value={{ user, login, firebaseLogin, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );
@@ -158,6 +131,7 @@ function AppRoutes() {
             <Route path="/students" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><Students /></Layout></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Layout><Analytics /></Layout></ProtectedRoute>} />
             <Route path="/test-results" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><TestResults /></Layout></ProtectedRoute>} />
+            <Route path="/user-management" element={<ProtectedRoute roles={['superadmin']}><Layout><UserManagement /></Layout></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

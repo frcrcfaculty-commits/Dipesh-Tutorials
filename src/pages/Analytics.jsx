@@ -3,6 +3,7 @@ import { useAuth } from '../App';
 import { getTests, getTestResults, getStandards, getStudents } from '../lib/api';
 import { BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
+import { showToast, withTimeout } from '../utils';
 
 export default function Analytics() {
     const { user } = useAuth();
@@ -18,11 +19,13 @@ export default function Analytics() {
     async function loadAll() {
         setLoading(true);
         try {
-            const [t, stds] = await Promise.all([getTests(), getStandards()]);
+            const [t, stds] = await withTimeout(Promise.all([getTests(), getStandards()]), 15000);
             setStandards(stds||[]);
             setTests(t||[]);
             if ((t||[]).length > 0) setSelectedTest((t||[])[0]);
-        } catch(e) {}
+        } catch(e) {
+            showToast(e.message || 'Failed to load analytics data', 'error');
+        }
         setLoading(false);
     }
 

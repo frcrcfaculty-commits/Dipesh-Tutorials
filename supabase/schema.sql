@@ -371,3 +371,23 @@ select id, '2025-26', case
     when name in ('11th Commerce','11th Science','12th Commerce','12th Science') then 35000
     else 25000
 end from standards;
+
+-- ─── ADDITIONAL RLS POLICIES ──────────────────────────────
+-- Allow authenticated users to read student IDs for RLS subquery resolution
+-- (prevents circular dependency when attendance/test_results/fees policies
+-- reference students table via subqueries)
+create policy "Authenticated read student ids for RLS" on students
+    for select using (auth.role() = 'authenticated');
+
+-- Reference tables: enable RLS with open read for clarity
+alter table standards enable row level security;
+create policy "Anyone can read standards" on standards
+    for select using (true);
+
+alter table subjects enable row level security;
+create policy "Anyone can read subjects" on subjects
+    for select using (true);
+
+alter table fee_structures enable row level security;
+create policy "Anyone can read fee structures" on fee_structures
+    for select using (true);

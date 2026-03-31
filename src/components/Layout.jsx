@@ -13,6 +13,18 @@ export default function Layout({ children }) {
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [notifCount, setNotifCount] = useState(0);
+    const [offline, setOffline] = useState(!navigator.onLine);
+
+    useEffect(() => {
+        const goOffline = () => setOffline(true);
+        const goOnline = () => setOffline(false);
+        window.addEventListener('offline', goOffline);
+        window.addEventListener('online', goOnline);
+        return () => {
+            window.removeEventListener('offline', goOffline);
+            window.removeEventListener('online', goOnline);
+        };
+    }, []);
 
     useEffect(() => {
         if (!user) return;
@@ -138,6 +150,11 @@ export default function Layout({ children }) {
 
                 {/* Page content */}
                 <main style={{ flex: 1, padding: 24, background: 'var(--bg)' }}>
+                    {offline && (
+                        <div style={{ background: '#EF4444', color: 'white', padding: '8px 16px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, borderRadius: 8, marginBottom: 16 }}>
+                            You appear to be offline. Data may not load until connection is restored.
+                        </div>
+                    )}
                     {children}
                 </main>
             </div>

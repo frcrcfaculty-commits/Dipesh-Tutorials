@@ -4,6 +4,7 @@ import { getDashboardStats, getStudents, getStudentAttendance, getTests, getTest
 import { Users, CalendarCheck, IndianRupee, BarChart3, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { useNavigate } from 'react-router-dom';
+import { showToast, withTimeout } from '../utils';
 
 const COLORS = ['#0A2351', '#B6922E', '#10B981', '#3B82F6', '#EF4444'];
 
@@ -15,12 +16,12 @@ function ParentDashboard({ user }) {
 
     useEffect(() => {
         if (!user.profile?.student_id) { setLoading(false); return; }
-        Promise.all([
+        withTimeout(Promise.all([
             getStudentAttendance(user.profile.student_id, 7),
             getTests(),
             getTestResults({ studentId: user.profile.student_id }),
             getNotifications('parent', 5),
-        ]).then(([attendance, tests, results, notifs]) => {
+        ]), 15000).then(([attendance, tests, results, notifs]) => {
             const present = (attendance||[]).filter(a => a.status === 'present').length;
             setAtt(attendance||[]);
             const latest = (tests||[])[0];
@@ -31,6 +32,9 @@ function ParentDashboard({ user }) {
                 setTestAvg(avg);
             }
             setNotifications(notifs||[]);
+            setLoading(false);
+        }).catch(err => {
+            showToast(err.message || 'Failed to load dashboard', 'error');
             setLoading(false);
         });
     }, [user]);
@@ -91,11 +95,11 @@ function StudentDashboard({ user }) {
 
     useEffect(() => {
         if (!user.profile?.id) { setLoading(false); return; }
-        Promise.all([
+        withTimeout(Promise.all([
             getStudentAttendance(user.profile.id, 28),
             getTests(),
             getTestResults({ studentId: user.profile.id }),
-        ]).then(([attendance, tests, results]) => {
+        ]), 15000).then(([attendance, tests, results]) => {
             setAtt(attendance||[]);
             const latest = (tests||[])[0];
             if (latest) {
@@ -104,6 +108,9 @@ function StudentDashboard({ user }) {
                     ? Math.round(latestResults.reduce((s,r) => s + (r.marks_obtained/r.max_marks)*100, 0) / latestResults.length) : 0;
                 setTestAvg(avg);
             }
+            setLoading(false);
+        }).catch(err => {
+            showToast(err.message || 'Failed to load dashboard', 'error');
             setLoading(false);
         });
     }, [user]);
@@ -139,11 +146,11 @@ function AdminDashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        Promise.all([
+        withTimeout(Promise.all([
             getDashboardStats(),
             getStudents(),
             getFeeSummary(),
-        ]).then(([s, students, fees]) => {
+        ]), 15000).then(([s, students, fees]) => {
             setStats({
                 totalStudents: s?.totalStudents || 0,
                 attendancePercent: s?.attendancePercent || 0,
@@ -164,6 +171,9 @@ function AdminDashboard() {
                 { name: 'Pending', value: pending },
                 { name: 'Overdue', value: overdue },
             ].filter(d => d.value > 0));
+            setLoading(false);
+        }).catch(err => {
+            showToast(err.message || 'Failed to load dashboard', 'error');
             setLoading(false);
         });
     }, []);

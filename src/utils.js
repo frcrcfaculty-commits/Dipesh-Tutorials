@@ -38,3 +38,13 @@ export function showToast(message, type = 'success') {
         setTimeout(() => toast.remove(), 300);
     }, 2500);
 }
+
+/**
+ * Wrap a promise with a timeout. Rejects if not resolved within `ms` milliseconds.
+ */
+export function withTimeout(promise, ms = 10000) {
+    const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), ms)
+    );
+    return Promise.race([promise, timeout]);
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getStudents, getStandards, addStudent, updateStudent, deleteStudent } from '../lib/api';
+import { getStudents, getStandards, addStudent, updateStudent, deleteStudent, getStudentStats, getFeeSummary } from '../lib/api';
 import { Search, Users, Download, Plus, X, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
 import { generateStudentReportPDF } from '../reports';
@@ -9,6 +9,8 @@ export default function Students() {
     const [standards, setStandards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [attendanceStats, setAttendanceStats] = useState({});
+    const [feeSummary, setFeeSummary] = useState([]);
     const [search, setSearch] = useState('');
     const [standardFilter, setStandardFilter] = useState('All');
     const [feeFilter, setFeeFilter] = useState('All');
@@ -27,9 +29,13 @@ export default function Students() {
         setLoading(true);
         setError('');
         try {
-            const [studs, stds] = await Promise.all([getStudents(), getStandards()]);
+            const [studs, stds, stats, fees] = await Promise.all([
+                getStudents(), getStandards(), getStudentStats(), getFeeSummary()
+            ]);
             setStudents(studs || []);
             setStandards(stds || []);
+            setAttendanceStats(stats || {});
+            setFeeSummary(fees || []);
         } catch (err) {
             setError('Failed to load students: ' + err.message);
             showToast('Failed to load data', 'error');
@@ -103,7 +109,26 @@ export default function Students() {
 
     const handleExportPDF = () => {
         if (filtered.length === 0) { showToast('No data to export'); return; }
-        generateStudentReportPDF(filtered);
+        // Build fee status lookup from feeSummary
+        const feeMap = {};
+        (feeSummary || []).forEach(f => { feeMap[f.student_id] = f.status || 'pending'; });
+
+        const pdfData = filtered.map(s => {
+            const stats = attendanceStats[s.id];
+            const attPct = stats && stats.total > 0
+                ? Math.round((stats.present / stats.total) * 100)
+                : '—';
+            return {
+                id: (s.id || '').slice(0, 8),
+                name: s.name || '—',
+                standard: s.standards?.name || '—',
+                rollNo: s.roll_no || '—',
+                attendancePercent: attPct,
+                feeStatus: feeMap[s.id] || 'pending',
+                parentPhone: s.parent_phone || '—',
+            };
+        });
+        generateStudentReportPDF(pdfData);
         showToast('PDF exported!');
     };
 
@@ -115,8 +140,9 @@ export default function Students() {
     };
 
     const attendancePercent = (s) => {
-        // Will be populated when attendance data is available
-        return s.attendance_percent || 75;
+        const stats = attendanceStats[s.id];
+        if (stats && stats.total > 0) return Math.round((stats.present / stats.total) * 100);
+        return '—';
     };
 
     if (loading) return <div className="loading-spinner" />;

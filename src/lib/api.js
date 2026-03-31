@@ -196,20 +196,28 @@ export async function markAttendance(records) {
 }
 
 export async function getAttendanceByDate(date, standardId = null) {
-    let query = supabase
+    // Two-query approach for reliability (avoids embedded join edge cases)
+    let studentQuery = supabase
         .from('students')
-        .select(`
-            id, name, roll_no, standard_id, standards(name),
-            attendance!left(id, date, status, arrival_time, method)
-        `)
-        .eq('is_active', true)
-        .eq('attendance.date', date);
+        .select('id, name, roll_no, standard_id, standards(name)')
+        .eq('is_active', true);
+    if (standardId) studentQuery = studentQuery.eq('standard_id', standardId);
 
-    if (standardId) query = query.eq('standard_id', standardId);
+    const { data: students, error: sErr } = await studentQuery.order('standard_id').order('roll_no');
+    if (sErr) throw sErr;
+    if (!students || students.length === 0) return [];
 
-    const { data, error } = await query.order('standard_id').order('roll_no');
-    if (error) throw error;
-    return data;
+    const { data: attendance, error: aErr } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('date', date)
+        .in('student_id', students.map(s => s.id));
+    if (aErr) throw aErr;
+
+    const attMap = {};
+    (attendance || []).forEach(a => { attMap[a.student_id] = a; });
+
+    return students.map(s => ({ ...s, attendance: attMap[s.id] ? [attMap[s.id]] : [] }));
 }
 
 // ─── TESTS & RESULTS ──────────────────────────────────────
@@ -381,7 +389,12 @@ export async function uploadFile(bucket, path, file) {
     const { data, error } = await supabase.storage
         .from(bucket)
         .upload(path, file, { upsert: true });
-    if (error) throw error;
+    if (error) {
+        if (error.message?.includes('not found') || error.statusCode === 404) {
+            throw new Error(`Storage bucket "${bucket}" not found. Ask admin to create it in Supabase Dashboard > Storage.`);
+        }
+        throw error;
+    }
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
     return urlData.publicUrl;
 }
@@ -406,4 +419,24 @@ export async function getDashboardStats() {
         attendancePercent: Math.round((presentToday / totalToday) * 100),
         totalNotifications: notifRes.count || 0,
     };
+}
+
+// ─── STUDENT STATS (for PDF reports) ──────────────────────
+export async function getStudentStats() {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const { data: attendance } = await supabase
+        .from('attendance')
+        .select('student_id, status')
+        .gte('date', thirtyDaysAgo.toISOString().split('T')[0]);
+
+    const stats = {};
+    (attendance || []).forEach(a => {
+        if (!stats[a.student_id]) stats[a.student_id] = { total: 0, present: 0 };
+        stats[a.student_id].total++;
+        if (a.status === 'present' || a.status === 'late') stats[a.student_id].present++;
+    });
+
+    return stats; // { studentId: { total, present } }
 }

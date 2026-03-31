@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { getTests, getTestResults, getStandards } from '../lib/api';
 import { AlertTriangle, Lightbulb } from 'lucide-react';
-import { showToast } from '../utils';
+import { showToast, withTimeout } from '../utils';
 
 export default function CourseMapping() {
     const { user } = useAuth();
@@ -18,11 +18,13 @@ export default function CourseMapping() {
     async function loadAll() {
         setLoading(true);
         try {
-            const [t, stds] = await Promise.all([getTests(), getStandards()]);
+            const [t, stds] = await withTimeout(Promise.all([getTests(), getStandards()]), 15000);
             setStandards(stds||[]);
             setTests(t||[]);
             if ((t||[]).length > 0) setSelectedTest((t||[])[0]);
-        } catch(e) {}
+        } catch(e) {
+            showToast(e.message || 'Failed to load course mapping data', 'error');
+        }
         setLoading(false);
     }
 

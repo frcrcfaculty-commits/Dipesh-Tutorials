@@ -24,19 +24,25 @@ Coaching class management platform. GitHub: `frcrcfaculty-commits/Dipesh-Tutoria
 - PDF + CSV export
 - UserManagement with create/link/deactivate
 - Capacitor Android + iOS projects
-- Complete schema.sql (12 tables, 18 RLS policies, triggers, indexes)
+- Complete schema.sql (12 tables, 18+ RLS policies, triggers, indexes)
 - Seed data (20 students, test marks, attendance, fees)
+- Error handling + timeouts (withTimeout utility, 15s defaults)
+- Offline detection banner
+- Real attendance % and fee status in PDF exports (getStudentStats + getFeeSummary)
+- Two-query approach for getAttendanceByDate (avoids PostgREST embedded join edge case)
+- Improved uploadFile error (detects missing storage bucket)
 
 ## Known Issues (Testing Needed)
-1. **RLS Policies** — Never tested against real auth. May block legitimate queries for some roles.
-2. **getAttendanceByDate** — Uses PostgREST `!left` embed syntax. Filter `.eq('attendance.date', date)` on outer join may behave unexpectedly when no records exist.
-3. **PDF Report Data Mapping** — Student PDF report shows "—" for attendance % because computing it requires additional query.
-4. **Loading/Error States** — Some pages show blank if a query fails. Add try/catch with toast + retry.
-5. **Mobile** — Not tested on real Android device.
+1. **RLS Policies** — Expanded in hardening commit. Still needs testing against real auth (especially attendance, test_results queries for parents/students).
+2. **PDF Report Data Mapping** — Attendance % now shows real data (getStudentStats). Fee status from feeSummary. Was "—" before hardening.
+3. **Android APK** — Not tested on a real device.
+4. **CourseMapping weak topic logic** — Uses last test only; may need refinement for students with no tests.
+5. **Loading states** — All pages now have try/catch + showToast. Generally robust now.
 
 ## Key Files
-- `src/lib/api.js` — All 34 query functions (source of truth)
+- `src/lib/api.js` — 36 Supabase query functions (source of truth)
 - `src/lib/supabase.js` — Supabase client
+- `src/utils.js` — withTimeout, exportCSV, showToast utilities
 - `supabase/schema.sql` — DB schema with RLS
 - `supabase/seed.sql` — Demo data
 - `src/pages/*.jsx` — All page components (Supabase-only imports)

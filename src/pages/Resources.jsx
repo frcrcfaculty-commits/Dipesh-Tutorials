@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { getResources, uploadResource, getStandards, getSubjects } from '../lib/api';
-import { BookOpen, Upload, FileText, Video, FileSpreadsheet, Presentation, X } from 'lucide-react';
+import { BookOpen, Upload, FileText, Video, FileSpreadsheet, Presentation, X, RefreshCw, AlertCircle } from 'lucide-react';
 import { showToast } from '../utils';
 
 const TYPE_ICONS = { 'PDF Notes': FileText, 'Video': Video, 'MCQ Set': FileSpreadsheet, 'PPT': Presentation, 'Notes': BookOpen };
@@ -14,6 +14,7 @@ export default function Resources() {
     const [standards, setStandards] = useState([]);
     const [subjects, setSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [filterType, setFilterType] = useState('All');
     const [filterStd, setFilterStd] = useState('all');
@@ -25,12 +26,16 @@ export default function Resources() {
 
     async function loadAll() {
         setLoading(true);
+        setFetchError(null);
         try {
             const [r, stds, subs] = await Promise.all([getResources(), getStandards(), getSubjects()]);
             setResources(r||[]);
             setStandards(stds||[]);
             setSubjects(subs||[]);
-        } catch(e) { showToast('Failed to load resources', 'error'); }
+        } catch(e) {
+            setFetchError(e.message || 'Failed to load resources');
+            showToast('Failed to load resources', 'error');
+        }
         setLoading(false);
     }
 
@@ -113,7 +118,15 @@ export default function Resources() {
                 </select>
             </div>
 
-            {loading ? <div className="loading-spinner" /> : filtered.length === 0 ? (
+            {loading ? <div className="loading-spinner" /> : fetchError ? (
+                <div className="empty-state" style={{ padding: 48 }}>
+                    <AlertCircle size={40} style={{ color: 'var(--danger)', marginBottom: 12 }} />
+                    <h3 style={{ marginBottom: 8 }}>{fetchError}</h3>
+                    <button className="btn-primary btn-small" onClick={loadAll} style={{ marginTop: 8 }}>
+                        <RefreshCw size={14} /> Try Again
+                    </button>
+                </div>
+            ) : filtered.length === 0 ? (
                 <div className="empty-state"><BookOpen /><h3>No resources found</h3></div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>

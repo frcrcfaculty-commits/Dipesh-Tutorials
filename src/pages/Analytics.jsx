@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { getTests, getTestResults, getStandards, getStudents } from '../lib/api';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, RefreshCw, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import { showToast, withTimeout } from '../utils';
 
@@ -13,17 +13,20 @@ export default function Analytics() {
     const [standards, setStandards] = useState([]);
     const [selectedStd, setSelectedStd] = useState('all');
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
 
     useEffect(() => { loadAll(); }, []);
 
     async function loadAll() {
         setLoading(true);
+        setFetchError(null);
         try {
             const [t, stds] = await withTimeout(Promise.all([getTests(), getStandards()]), 15000);
             setStandards(stds||[]);
             setTests(t||[]);
             if ((t||[]).length > 0) setSelectedTest((t||[])[0]);
         } catch(e) {
+            setFetchError(e.message || 'Failed to load analytics data');
             showToast(e.message || 'Failed to load analytics data', 'error');
         }
         setLoading(false);
@@ -53,6 +56,15 @@ export default function Analytics() {
     const barData = Object.entries(gradeDist).filter(([_,v]) => v > 0).map(([grade, count]) => ({ grade, count, percent: Math.round(count/total*100) }));
 
     if (loading) return <div className="loading-spinner" />;
+    if (fetchError) return (
+        <div className="empty-state" style={{ padding: 48 }}>
+            <AlertCircle size={40} style={{ color: 'var(--danger)', marginBottom: 12 }} />
+            <h3 style={{ marginBottom: 8 }}>{fetchError}</h3>
+            <button className="btn-primary btn-small" onClick={loadAll} style={{ marginTop: 8 }}>
+                <RefreshCw size={14} /> Try Again
+            </button>
+        </div>
+    );
 
     return (
         <>

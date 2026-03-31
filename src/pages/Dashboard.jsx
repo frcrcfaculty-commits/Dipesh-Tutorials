@@ -1,21 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { getDashboardStats, getStudents, getStudentAttendance, getTests, getTestResults, getNotifications, getFeeSummary } from '../lib/api';
-import { Users, CalendarCheck, IndianRupee, BarChart3, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
+import { Users, CalendarCheck, IndianRupee, BarChart3, AlertCircle, CheckCircle, ArrowRight, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { showToast, withTimeout } from '../utils';
 
 const COLORS = ['#0A2351', '#B6922E', '#10B981', '#3B82F6', '#EF4444'];
 
+function RetryBanner({ message, onRetry }) {
+    return (
+        <div className="empty-state" style={{ padding: 48 }}>
+            <AlertCircle size={40} style={{ color: 'var(--danger)', marginBottom: 12 }} />
+            <h3 style={{ marginBottom: 8 }}>{message || 'Failed to load data'}</h3>
+            <button className="btn-primary btn-small" onClick={onRetry} style={{ marginTop: 8 }}>
+                <RefreshCw size={14} /> Try Again
+            </button>
+        </div>
+    );
+}
+
 function ParentDashboard({ user }) {
     const [att, setAtt] = useState([]);
     const [testAvg, setTestAvg] = useState(null);
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
 
-    useEffect(() => {
+    const loadData = () => {
         if (!user.profile?.student_id) { setLoading(false); return; }
+        setLoading(true);
+        setFetchError(null);
         withTimeout(Promise.all([
             getStudentAttendance(user.profile.student_id, 7),
             getTests(),
@@ -34,16 +49,20 @@ function ParentDashboard({ user }) {
             setNotifications(notifs||[]);
             setLoading(false);
         }).catch(err => {
+            setFetchError(err.message || 'Failed to load dashboard');
             showToast(err.message || 'Failed to load dashboard', 'error');
             setLoading(false);
         });
-    }, [user]);
+    };
+
+    useEffect(() => { loadData(); }, [user]);
 
     const present = att.filter(a => a.status === 'present').length;
     const total = att.length || 1;
     const last7 = att.slice(-7).map(a => ({ date: (a.date||'').slice(5), status: a.status === 'present' ? 1 : a.status === 'late' ? 0.5 : 0 }));
 
     if (loading) return <div className="loading-spinner" />;
+    if (fetchError) return <RetryBanner message={fetchError} onRetry={loadData} />;
     if (!user.profile?.student_id) return <div className="empty-state"><h3>No student linked to your account</h3></div>;
 
     return (
@@ -91,10 +110,13 @@ function StudentDashboard({ user }) {
     const [att, setAtt] = useState([]);
     const [testAvg, setTestAvg] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
     const navigate = useNavigate();
 
-    useEffect(() => {
+    const loadData = () => {
         if (!user.profile?.id) { setLoading(false); return; }
+        setLoading(true);
+        setFetchError(null);
         withTimeout(Promise.all([
             getStudentAttendance(user.profile.id, 28),
             getTests(),
@@ -110,14 +132,18 @@ function StudentDashboard({ user }) {
             }
             setLoading(false);
         }).catch(err => {
+            setFetchError(err.message || 'Failed to load dashboard');
             showToast(err.message || 'Failed to load dashboard', 'error');
             setLoading(false);
         });
-    }, [user]);
+    };
+
+    useEffect(() => { loadData(); }, [user]);
 
     const present = att.filter(a => a.status === 'present').length;
     const total = att.length || 1;
     if (loading) return <div className="loading-spinner" />;
+    if (fetchError) return <RetryBanner message={fetchError} onRetry={loadData} />;
 
     return (
         <>
@@ -144,8 +170,11 @@ function AdminDashboard() {
     const [stdData, setStdData] = useState([]);
     const [feeData, setFeeData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
 
-    useEffect(() => {
+    const loadData = () => {
+        setLoading(true);
+        setFetchError(null);
         withTimeout(Promise.all([
             getDashboardStats(),
             getStudents(),
@@ -173,12 +202,16 @@ function AdminDashboard() {
             ].filter(d => d.value > 0));
             setLoading(false);
         }).catch(err => {
+            setFetchError(err.message || 'Failed to load dashboard');
             showToast(err.message || 'Failed to load dashboard', 'error');
             setLoading(false);
         });
-    }, []);
+    };
+
+    useEffect(() => { loadData(); }, []);
 
     if (loading) return <div className="loading-spinner" />;
+    if (fetchError) return <RetryBanner message={fetchError} onRetry={loadData} />;
 
     return (
         <>

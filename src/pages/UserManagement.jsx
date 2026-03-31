@@ -67,33 +67,43 @@ export default function UserManagement() {
         }
         setCreating(true);
         try {
-            // Note: Supabase must have "Enable email confirmations" turned OFF
-            // in Authentication > Providers > Email for this to work without email verification.
-            // Go to: Supabase Dashboard > Authentication > Providers > Email > disable "Confirm email"
             const { data, error } = await supabase.auth.signUp({
                 email: newEmail,
                 password: newPassword,
                 options: {
                     data: { name: newName, role: newRole },
-                    emailRedirectTo: undefined, // no redirect needed when confirmation is off
+                    emailRedirectTo: undefined,
                 }
             });
             if (error) throw error;
 
-            // If email confirmation is ON, data.user exists but data.session is null
-            // Warn the admin in that case
             if (data.user && !data.session) {
-                showToast(`Account created but email confirmation may be required. Disable "Confirm email" in Supabase Auth settings for instant access.`, 'info');
+                showToast('Account created but email confirmation may be required. Disable "Confirm email" in Supabase Auth settings for instant access.', 'info');
             }
 
-            // The trigger handle_new_user creates the profile automatically.
-            // Update the role since signUp metadata might not propagate via trigger
+            // Retry loop: the handle_new_user trigger creates the profile row asynchronously.
+            // We retry the update until the profile exists (up to 5 attempts, 500ms apart).
             if (data.user) {
-                // Small delay to let the trigger fire first
-                await new Promise(r => setTimeout(r, 500));
-                await supabase.from('profiles')
-                    .update({ role: newRole, name: newName })
-                    .eq('id', data.user.id);
+                let profileUpdated = false;
+                for (let attempt = 1; attempt <= 5; attempt++) {
+                    await new Promise(r => setTimeout(r, 500));
+                    const { data: updated, error: updateErr } = await supabase
+                        .from('profiles')
+                        .update({ role: newRole, name: newName })
+                        .eq('id', data.user.id)
+                        .select()
+                        .single();
+                    if (updated && !updateErr) {
+                        profileUpdated = true;
+                        break;
+                    }
+                    if (attempt === 5) {
+                        console.warn('Profile update failed after 5 retries, trigger may not have fired:', updateErr);
+                    }
+                }
+                if (!profileUpdated) {
+                    showToast('Account created but profile update may have failed. The user can still log in — their role will be set on next login.', 'info');
+                }
             }
 
             showToast(`Account created for ${newName} (${newRole})`);

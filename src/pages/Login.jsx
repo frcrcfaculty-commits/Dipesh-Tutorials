@@ -26,7 +26,7 @@ export default function Login() {
                 setError(result.error || 'Login failed');
             }
         } catch (err) {
-            setError('An unexpected error occurred');
+            setError(err.message || 'An unexpected error occurred. Please check your connection and try again.');
         } finally {
             setLoading(false);
         }

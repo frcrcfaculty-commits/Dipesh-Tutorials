@@ -38,7 +38,7 @@ export default function Login() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(135deg, #C44E00 0%, #E8600A 50%, #F07D2E 100%)',
+            background: 'linear-gradient(135deg, #031a3d 0%, #0A2351 50%, #273c66 100%)',
             padding: 20,
         }}>
             <div style={{
@@ -56,7 +56,7 @@ export default function Login() {
                         width: 64,
                         height: 64,
                         borderRadius: 16,
-                        background: 'linear-gradient(135deg, #E8600A, #F49A3D)',
+                        background: 'linear-gradient(135deg, #0A2351, #B6922E)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

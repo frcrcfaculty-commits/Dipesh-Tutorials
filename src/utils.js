@@ -29,7 +29,7 @@ export function showToast(message, type = 'success') {
         padding: 12px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
         color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         animation: fadeSlideUp 0.3s ease;
-        background: ${type === 'success' ? '#10B981' : type === 'error' ? '#EF4444' : '#E8600A'};
+        background: ${type === 'success' ? '#10B981' : type === 'error' ? '#EF4444' : '#0A2351'};
     `;
     document.body.appendChild(toast);
     setTimeout(() => {

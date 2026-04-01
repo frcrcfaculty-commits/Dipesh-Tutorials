@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../App';
 import { supabase } from '../lib/supabase';
@@ -14,6 +14,7 @@ export default function Layout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [notifCount, setNotifCount] = useState(0);
     const [offline, setOffline] = useState(!navigator.onLine);
+    const prevNotifRef = useRef(null);
 
     // Page title
     useEffect(() => {
@@ -58,7 +59,18 @@ export default function Layout({ children }) {
                     .eq('profile_id', user.id);
 
                 if (!nErr && !rErr) {
-                    setNotifCount(Math.max(0, (totalCount || 0) - (readCount || 0)));
+                    const newCount = Math.max(0, (totalCount || 0) - (readCount || 0));
+                    
+                    // Trigger sound if count went up and it's not the first load
+                    if (prevNotifRef.current !== null && newCount > prevNotifRef.current) {
+                        const soundEnabled = localStorage.getItem('dt_notif_sound') !== 'false';
+                        if (soundEnabled) {
+                            import('../utils').then(m => m.playNotificationTone());
+                        }
+                    }
+                    
+                    prevNotifRef.current = newCount;
+                    setNotifCount(newCount);
                 }
             } catch (_) {}
         };

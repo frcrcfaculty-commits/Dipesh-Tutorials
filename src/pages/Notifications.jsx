@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { getNotifications, createNotification, markNotificationRead, getStandards } from '../lib/api';
-import { Bell, Send, CheckCircle } from 'lucide-react';
+import { Bell, Send, CheckCircle, BellRing, BellOff } from 'lucide-react';
 import { showToast } from '../utils';
 
 export default function Notifications() {
@@ -12,6 +12,16 @@ export default function Notifications() {
     const [sending, setSending] = useState(false);
     const [form, setForm] = useState({ title: '', message: '', type: 'general', target_roles: ['student', 'parent'], target_standard_id: null });
     const [standards, setStandards] = useState([]);
+    const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('dt_notif_sound') !== 'false');
+
+    const toggleSound = () => {
+        const newVal = !soundEnabled;
+        setSoundEnabled(newVal);
+        localStorage.setItem('dt_notif_sound', newVal);
+        if (newVal) {
+            import('../utils').then(m => m.playNotificationTone()); // preview sound
+        }
+    };
 
     const load = async () => {
         setLoading(true);
@@ -85,11 +95,17 @@ export default function Notifications() {
             <div className="card">
                 <div className="card-header">
                     <h3>Notifications</h3>
-                    {isAdmin && (
-                        <button className="btn-primary btn-small" onClick={() => setShowForm(!showForm)}>
-                            <Send size={14} /> Send Notification
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn-secondary btn-small" onClick={toggleSound}>
+                            {soundEnabled ? <BellRing size={14} /> : <div style={{opacity:0.5}}><BellOff size={14} /></div>} 
+                            {soundEnabled ? 'Tone On' : 'Tone Off'}
                         </button>
-                    )}
+                        {isAdmin && (
+                            <button className="btn-primary btn-small" onClick={() => setShowForm(!showForm)}>
+                                <Send size={14} /> Send Notification
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {showForm && isAdmin && (

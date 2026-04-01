@@ -46,14 +46,20 @@ export default function Students() {
 
     useEffect(() => { loadData(); }, []);
 
+    const feeStatusMap = useMemo(() => {
+        const map = {};
+        (feeSummary || []).forEach(f => { map[f.student_id] = f.status || 'pending'; });
+        return map;
+    }, [feeSummary]);
+
     const filtered = useMemo(() => {
         return (students || []).filter(s => {
             if (standardFilter !== 'All' && s.standards?.name !== standardFilter) return false;
-            if (feeFilter !== 'All' && s.status !== feeFilter) return false;
+            if (feeFilter !== 'All' && (feeStatusMap[s.id] || 'pending') !== feeFilter) return false;
             if (search && !(s.name?.toLowerCase().includes(search.toLowerCase()) || s.id?.toLowerCase().includes(search.toLowerCase()))) return false;
             return true;
         });
-    }, [students, search, standardFilter, feeFilter]);
+    }, [students, search, standardFilter, feeFilter, feeStatusMap]);
 
     const openAdd = () => {
         setForm({ name: '', roll_no: '', gender: 'Male', standard_id: standards[0]?.id || '', parent_name: '', parent_phone: '', parent_email: '', date_of_birth: '', address: '', enrollment_date: new Date().toISOString().split('T')[0] });
@@ -204,7 +210,7 @@ export default function Students() {
                                         <td>{s.gender}</td>
                                         <td style={{ fontSize: '0.85rem' }}>{s.parent_name}</td>
                                         <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.parent_phone}</td>
-                                        <td><span className={`badge ${s.status || 'pending'}`}>{s.status || 'pending'}</span></td>
+                                        <td><span className={`badge ${feeStatusMap[s.id] || 'pending'}`}>{feeStatusMap[s.id] || 'pending'}</span></td>
                                         <td>
                                             <div style={{ display: 'flex', gap: 6 }}>
                                                 <button className="icon-btn" onClick={() => openEdit(s)} title="Edit"><Edit2 size={14} /></button>

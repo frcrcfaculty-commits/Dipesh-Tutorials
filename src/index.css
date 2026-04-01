@@ -6,21 +6,21 @@
 
 :root {
     /* ── Brand Colors ── */
-    --navy: #E8600A;
-    --navy-light: #F07D2E;
-    --navy-dark: #C44E00;
-    --gold: #E8600A;
-    --gold-light: #F49A3D;
-    --gold-dark: #B84A00;
+    --navy: #D4722A;
+    --navy-light: #E08940;
+    --navy-dark: #B55D1A;
+    --gold: #D4722A;
+    --gold-light: #E8A45C;
+    --gold-dark: #9E4E12;
 
     /* ── Functional ── */
     --bg: #F7F7F7;
     --bg-card: #FFFFFF;
-    --bg-sidebar: #E8600A;
+    --bg-sidebar: #2D2D2D;
     --text: #1A1A1A;
-    --text-muted: #6B7280;
-    --text-light: #9CA3AF;
-    --border: #E5E7EB;
+    --text-muted: #555555;
+    --text-light: #888888;
+    --border: #E0E0E0;
     --success: #10B981;
     --warning: #F59E0B;
     --danger: #EF4444;
@@ -443,7 +443,7 @@ img {
 /* ── Sidebar ── */
 .sidebar {
     width: var(--sidebar-width);
-    background: linear-gradient(180deg, var(--navy-dark) 0%, var(--navy) 100%);
+    background: linear-gradient(180deg, #2D2D2D 0%, #1A1A1A 100%);
     color: white;
     display: flex;
     flex-direction: column;
@@ -534,7 +534,7 @@ img {
 
 .nav-item.active {
     color: white;
-    background: rgba(182, 146, 46, 0.15);
+    background: rgba(212, 114, 42, 0.2);
 }
 
 .nav-item.active::before {
@@ -544,7 +544,7 @@ img {
     top: 4px;
     bottom: 4px;
     width: 3px;
-    background: var(--gold);
+    background: var(--navy);
     border-radius: 0 3px 3px 0;
 }
 
@@ -1496,6 +1496,25 @@ img {
     }
 }
 
+/* Mobile login keyboard fix */
+@media (max-width: 768px) {
+    .login-page {
+        min-height: 100dvh;
+        padding: var(--space-lg);
+    }
+
+    .login-card {
+        padding: var(--space-xl) var(--space-lg);
+        margin-bottom: env(keyboard-inset-height, 0px);
+    }
+
+    /* Prevent grey overlay when keyboard is open */
+    .login-page input:focus {
+        position: relative;
+        z-index: 10;
+    }
+}
+
 @media (max-width: 480px) {
     .stats-grid {
         grid-template-columns: 1fr;
@@ -2157,6 +2176,18 @@ input[type="search"],
 
     .analytics-hero h2 {
         font-size: var(--text-xl);
+    }
+
+    /* Mobile dashboard better layout */
+    .stat-card {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .stat-card .stat-icon {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
     }
 }
 /* ── Loading Spinner ── */

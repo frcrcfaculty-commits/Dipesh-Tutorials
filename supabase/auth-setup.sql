@@ -1,0 +1,48 @@
+-- ============================================================
+-- Dipesh Tutorials — Auth + Profile Setup
+-- Run this AFTER seed.sql
+--
+-- IMPORTANT: This script uses the raw email+password approach.
+-- For production, use Supabase Auth Dashboard or Admin API.
+--
+-- NOTE: You need your Supabase Service Role Key for this.
+-- Get it from: Supabase Dashboard → Settings → API → service_role key
+-- ============================================================
+--
+-- STEP 1: Create Auth Users (run via Supabase Dashboard SQL Editor)
+-- The auth.users entries need to be created via the Supabase Admin API,
+-- not directly via SQL (auth.users is a secured table).
+--
+-- For POC demo, use Authentication → Users → Add User in the dashboard.
+--
+-- STEP 2: After creating users above, update their profiles:
+--
+-- UPDATE profiles SET role = 'superadmin', name = 'Dipesh Sir'
+--   WHERE email = 'dipesh@dipeshtutorials.com';
+--
+-- UPDATE profiles SET role = 'admin', name = 'Admin'
+--   WHERE email = 'admin@dipeshtutorials.com';
+--
+-- STEP 3: Link student and parent records to auth users
+--
+-- Find the profile id for student1:
+--   SELECT id, email FROM profiles WHERE email = 'student1@dipeshtutorials.com';
+--
+-- Then update students table:
+--   UPDATE students SET profile_id = '<profile_uuid>' WHERE name LIKE '%Student 1%';
+--
+-- Find the profile id for parent1:
+--   SELECT id, email FROM profiles WHERE email = 'parent1@dipeshtutorials.com';
+--
+-- Then update students table (linking parent to their child):
+--   UPDATE students SET parent_profile_id = '<parent_profile_uuid>' WHERE name LIKE '%Student 1%';
+--
+-- ============================================================
+-- QUICK FIX: If auth.users already exist but profiles are missing roles
+-- ============================================================
+--
+-- Match profiles to auth users by email:
+--   UPDATE profiles SET role = 'superadmin'
+--     FROM auth.users WHERE auth.users.id = profiles.id
+--     AND auth.users.email = 'dipesh@dipeshtutorials.com';
+--

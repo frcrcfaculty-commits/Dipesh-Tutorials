@@ -80,7 +80,7 @@ export default function Layout({ children }) {
                 {/* Logo */}
                 <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #B6922E, #D4AF37)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1rem', color: 'var(--navy)' }}>DT</div>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #E8600A, #F49A3D)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1rem', color: 'white' }}>DT</div>
                         <div>
                             <div style={{ fontWeight: 700, fontSize: '0.95rem', fontFamily: 'var(--font-heading)' }}>Dipesh Tutorials</div>
                             <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'capitalize' }}>{user?.role}</div>

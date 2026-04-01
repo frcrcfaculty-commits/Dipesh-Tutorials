@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useNavigate } from 'react-router-dom';
 import { showToast, withTimeout } from '../utils';
 
-const COLORS = ['#0A2351', '#B6922E', '#10B981', '#3B82F6', '#EF4444'];
+const COLORS = ['#E8600A', '#F49A3D', '#10B981', '#3B82F6', '#EF4444'];
 
 function RetryBanner({ message, onRetry }) {
     return (
@@ -69,9 +69,9 @@ function ParentDashboard({ user }) {
 
     return (
         <>
-            <div style={{ marginBottom: 24, padding: '20px 24px', background: 'linear-gradient(135deg, #0A2351, #122D64)', borderRadius: 16, color: 'white' }}>
+            <div style={{ marginBottom: 24, padding: '20px 24px', background: 'linear-gradient(135deg, #C44E00, #E8600A)', borderRadius: 16, color: 'white' }}>
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', marginBottom: 4 }}>Welcome, {user.name}!</h2>
-                <p style={{ opacity: 0.7, fontSize: '0.9rem' }}>Parent Dashboard — {user.students?.[0]?.name}</p>
+                <p style={{ opacity: 0.85, fontSize: '0.9rem' }}>Parent Dashboard — {user.students?.[0]?.name}</p>
             </div>
             <div className="stats-grid">
                 <div className="stat-card navy"><div className="stat-icon navy"><CalendarCheck size={24} /></div><div className="stat-info"><h4>Attendance (7d)</h4><div className="stat-value">{Math.round(present/total*100)}%</div></div></div>
@@ -87,7 +87,7 @@ function ParentDashboard({ user }) {
                                 <XAxis dataKey="date" fontSize={12} />
                                 <YAxis domain={[0,1]} ticks={[0,0.5,1]} tickFormatter={v => v===1?'P':v===0.5?'L':'A'} fontSize={12} />
                                 <Tooltip formatter={v => v===1?'Present':v===0.5?'Late':'Absent'} />
-                                <Bar dataKey="status" fill="#0A2351" radius={[4,4,0,0]} />
+                                <Bar dataKey="status" fill="#E8600A" radius={[4,4,0,0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -152,9 +152,9 @@ function StudentDashboard({ user }) {
 
     return (
         <>
-            <div style={{ marginBottom: 24, padding: '20px 24px', background: 'linear-gradient(135deg, #0A2351, #122D64)', borderRadius: 16, color: 'white' }}>
+            <div style={{ marginBottom: 24, padding: '20px 24px', background: 'linear-gradient(135deg, #C44E00, #E8600A)', borderRadius: 16, color: 'white' }}>
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', marginBottom: 4 }}>Hello, {user.name}!</h2>
-                <p style={{ opacity: 0.7, fontSize: '0.9rem' }}>Student Dashboard</p>
+                <p style={{ opacity: 0.85, fontSize: '0.9rem' }}>Student Dashboard</p>
             </div>
             <div className="stats-grid">
                 <div className="stat-card navy"><div className="stat-icon navy"><CalendarCheck size={24} /></div><div className="stat-info"><h4>Attendance</h4><div className="stat-value">{Math.round(present/total*100)}%</div></div></div>
@@ -237,7 +237,7 @@ function AdminDashboard() {
                                     <XAxis dataKey="name" fontSize={11} angle={-30} textAnchor="end" height={60} />
                                     <YAxis fontSize={12} />
                                     <Tooltip />
-                                    <Bar dataKey="students" fill="#0A2351" radius={[4,4,0,0]} />
+                                    <Bar dataKey="students" fill="#E8600A" radius={[4,4,0,0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : <div className="empty-state"><Users /><h3>No data</h3></div>}

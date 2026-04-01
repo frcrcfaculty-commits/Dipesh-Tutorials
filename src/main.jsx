@@ -8,7 +8,7 @@ import { Capacitor } from '@capacitor/core';
 if (Capacitor.isNativePlatform()) {
     import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
         StatusBar.setStyle({ style: Style.Dark });
-        StatusBar.setBackgroundColor({ color: '#0A2351' });
+        StatusBar.setBackgroundColor({ color: '#E8600A' });
     }).catch(() => { });
     import('@capacitor/splash-screen').then(({ SplashScreen }) => {
         SplashScreen.hide();

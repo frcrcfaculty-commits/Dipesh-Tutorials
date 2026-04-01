@@ -24,7 +24,7 @@ export default class ErrorBoundary extends React.Component {
                     fontFamily: "'Inter', sans-serif"
                 }}>
                     <AlertCircle size={48} style={{ color: '#EF4444', marginBottom: 16 }} />
-                    <h2 style={{ fontFamily: "'Outfit', sans-serif", color: '#0A2351', marginBottom: 8 }}>
+                    <h2 style={{ fontFamily: "'Outfit', sans-serif", color: '#E8600A', marginBottom: 8 }}>
                         Something went wrong
                     </h2>
                     <p style={{ color: '#6B7280', marginBottom: 24, maxWidth: 400 }}>
@@ -34,7 +34,7 @@ export default class ErrorBoundary extends React.Component {
                         onClick={() => window.location.reload()}
                         style={{
                             display: 'flex', alignItems: 'center', gap: 8,
-                            padding: '12px 24px', background: '#0A2351', color: 'white',
+                            padding: '12px 24px', background: '#E8600A', color: 'white',
                             border: 'none', borderRadius: 10, cursor: 'pointer',
                             fontWeight: 600, fontSize: '0.95rem'
                         }}

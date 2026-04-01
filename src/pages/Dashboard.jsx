@@ -24,8 +24,10 @@ function ParentDashboard({ user }) {
     const [att, setAtt] = useState([]);
     const [testAvg, setTestAvg] = useState(null);
     const [notifications, setNotifications] = useState([]);
+    const [feeBalance, setFeeBalance] = useState(null);
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState(null);
+    const navigate = useNavigate();
 
     const studentId = user?.students?.[0]?.id;
 
@@ -38,7 +40,8 @@ function ParentDashboard({ user }) {
             getTests(),
             getTestResults({ studentId: studentId }),
             getNotifications('parent', 5),
-        ]), 15000).then(([attendance, tests, results, notifs]) => {
+            getFeeSummary(),
+        ]), 15000).then(([attendance, tests, results, notifs, fees]) => {
             const present = (attendance||[]).filter(a => a.status === 'present').length;
             setAtt(attendance||[]);
             const latest = (tests||[])[0];
@@ -48,6 +51,9 @@ function ParentDashboard({ user }) {
                     ? Math.round(latestResults.reduce((s,r) => s + (r.marks_obtained/r.max_marks)*100, 0) / latestResults.length) : 0;
                 setTestAvg(avg);
             }
+            // Find fee for linked student
+            const studentFee = (fees||[]).find(f => f.student_id === user.profile.student_id);
+            setFeeBalance(studentFee ? studentFee.balance : 0);
             setNotifications(notifs||[]);
             setLoading(false);
         }).catch(err => {
@@ -77,6 +83,25 @@ function ParentDashboard({ user }) {
                 <div className="stat-card navy"><div className="stat-icon navy"><CalendarCheck size={24} /></div><div className="stat-info"><h4>Attendance (7d)</h4><div className="stat-value">{Math.round(present/total*100)}%</div></div></div>
                 <div className="stat-card gold"><div className="stat-icon gold"><BarChart3 size={24} /></div><div className="stat-info"><h4>Latest Test</h4><div className="stat-value">{testAvg !== null ? `${testAvg}%` : '—'}</div></div></div>
             </div>
+
+            {/* Fee Balance — Journey 5 fix */}
+            {feeBalance !== null && (
+                <div className="card" style={{ marginTop: 24 }}>
+                    <div className="card-header"><h3>Fee Status</h3></div>
+                    <div className="card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Pending Balance</div>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 700, color: feeBalance > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                                ₹{parseFloat(feeBalance || 0).toLocaleString('en-IN')}
+                            </div>
+                        </div>
+                        <button className="btn-gold btn-small" onClick={() => navigate('/billing')}>
+                            <IndianRupee size={14} /> View Billing
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {last7.length > 0 && (
                 <div className="card" style={{ marginTop: 24 }}>
                     <div className="card-header"><h3>Weekly Attendance</h3></div>

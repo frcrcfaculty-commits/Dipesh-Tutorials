@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
-import { getNotifications, createNotification, markNotificationRead } from '../lib/api';
+import { getNotifications, createNotification, markNotificationRead, getStandards } from '../lib/api';
 import { Bell, Send, CheckCircle } from 'lucide-react';
 import { showToast } from '../utils';
 
@@ -10,7 +10,8 @@ export default function Notifications() {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [sending, setSending] = useState(false);
-    const [form, setForm] = useState({ title: '', message: '', type: 'general', target_roles: ['student', 'parent'] });
+    const [form, setForm] = useState({ title: '', message: '', type: 'general', target_roles: ['student', 'parent'], target_standard_id: null });
+    const [standards, setStandards] = useState([]);
 
     const load = async () => {
         setLoading(true);
@@ -24,7 +25,15 @@ export default function Notifications() {
         }
     };
 
+    const loadStandards = async () => {
+        try {
+            const data = await getStandards();
+            setStandards(data || []);
+        } catch (_) {}
+    };
+
     useEffect(() => { load(); }, []);
+    useEffect(() => { if (showForm) loadStandards(); }, [showForm]);
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -33,7 +42,7 @@ export default function Notifications() {
             await createNotification({ ...form, sent_by: user.id });
             showToast('Notification sent!');
             setShowForm(false);
-            setForm({ title: '', message: '', type: 'general', target_roles: ['student', 'parent'] });
+            setForm({ title: '', message: '', type: 'general', target_roles: ['student', 'parent'], target_standard_id: null });
             load();
         } catch (err) {
             showToast(err.message || 'Failed to send', 'error');
@@ -47,6 +56,15 @@ export default function Notifications() {
             await markNotificationRead(id, user.id);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
         } catch (_) {}
+    };
+
+    const toggleRole = (role) => {
+        setForm(p => {
+            const roles = p.target_roles.includes(role)
+                ? p.target_roles.filter(r => r !== role)
+                : [...p.target_roles, role];
+            return { ...p, target_roles: roles.length > 0 ? roles : p.target_roles };
+        });
     };
 
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -81,11 +99,35 @@ export default function Notifications() {
                                 <div className="form-group"><label>Title *</label><input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Notification title" /></div>
                                 <div className="form-group"><label>Type</label>
                                     <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-                                        <option value="general">General</option><option value="fee">Fee</option><option value="attendance">Attendance</option><option value="resource">Resource</option><option value="exam">Exam</option>
+                                        <option value="general">General</option>
+                                        <option value="fee">Fee Reminder</option>
+                                        <option value="attendance">Attendance</option>
+                                        <option value="resource">Resource</option>
+                                        <option value="exam">Exam</option>
                                     </select>
                                 </div>
                             </div>
                             <div className="form-group"><label>Message *</label><textarea required rows={3} value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))} placeholder="Write your message..." /></div>
+
+                            {/* Audience Selection */}
+                            <div className="form-group">
+                                <label>Send To (Audience)</label>
+                                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                                    <button type="button" className={`btn-small ${form.target_roles.includes('student') ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleRole('student')}>All Students</button>
+                                    <button type="button" className={`btn-small ${form.target_roles.includes('parent') ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleRole('parent')}>All Parents</button>
+                                    <button type="button" className={`btn-small ${form.target_roles.includes('admin') ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleRole('admin')}>All Admins</button>
+                                </div>
+                            </div>
+
+                            {/* Standard Filter */}
+                            <div className="form-group">
+                                <label>Standard (Optional — leave blank for all)</label>
+                                <select value={form.target_standard_id || ''} onChange={e => setForm(p => ({ ...p, target_standard_id: e.target.value ? parseInt(e.target.value) : null }))}>
+                                    <option value="">All Standards</option>
+                                    {standards.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+
                             <div style={{ display: 'flex', gap: 8 }}>
                                 <button type="submit" className="btn-primary btn-small" disabled={sending}>{sending ? 'Sending...' : 'Send'}</button>
                                 <button type="button" className="btn-secondary btn-small" onClick={() => setShowForm(false)}>Cancel</button>

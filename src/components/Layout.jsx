@@ -30,14 +30,27 @@ export default function Layout({ children }) {
         if (!user) return;
         const fetchNotifCount = async () => {
             try {
-                const { count } = await supabase
+                // Count total notifications targeting this user's role
+                const { count: totalCount, error: nErr } = await supabase
                     .from('notifications')
                     .select('*', { count: 'exact', head: true })
                     .contains('target_roles', [user.role]);
-                setNotifCount(count || 0);
+
+                // Count how many this user has already read
+                const { count: readCount, error: rErr } = await supabase
+                    .from('notification_reads')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('profile_id', user.id);
+
+                if (!nErr && !rErr) {
+                    setNotifCount(Math.max(0, (totalCount || 0) - (readCount || 0)));
+                }
             } catch (_) {}
         };
         fetchNotifCount();
+        // Refresh every 30 seconds so badge updates after new notifications
+        const interval = setInterval(fetchNotifCount, 30000);
+        return () => clearInterval(interval);
     }, [user]);
 
     const navItems = [

@@ -124,7 +124,10 @@ export async function addStudent(student) {
         .insert(student)
         .select('*, standards(name)')
         .single();
-    if (error) throw error;
+    if (error) {
+        console.error('addStudent failed:', error.message, error.details, error.hint, error.code);
+        throw error;
+    }
     return data;
 }
 
@@ -187,11 +190,19 @@ export async function getStudentAttendance(studentId, days = 28) {
 
 export async function markAttendance(records) {
     // records: [{ student_id, date, status, arrival_time, method, marked_by }]
+    // Make marked_by optional to prevent FK failures
+    const cleanRecords = records.map(r => ({
+        ...r,
+        marked_by: r.marked_by || null,
+    }));
     const { data, error } = await supabase
         .from('attendance')
-        .upsert(records, { onConflict: 'student_id,date' })
+        .upsert(cleanRecords, { onConflict: 'student_id,date' })
         .select();
-    if (error) throw error;
+    if (error) {
+        console.error('markAttendance failed:', error.message, error.details, error.hint, error.code);
+        throw error;
+    }
     return data;
 }
 
@@ -230,12 +241,16 @@ export async function getTests(standardId = null) {
 }
 
 export async function createTest(test) {
+    const cleanTest = { ...test, created_by: test.created_by || null };
     const { data, error } = await supabase
         .from('tests')
-        .insert(test)
+        .insert(cleanTest)
         .select()
         .single();
-    if (error) throw error;
+    if (error) {
+        console.error('createTest failed:', error.message, error.details, error.hint, error.code);
+        throw error;
+    }
     return data;
 }
 
@@ -254,11 +269,19 @@ export async function getTestResults(filters = {}) {
 }
 
 export async function upsertTestResults(results) {
+    // Make entered_by optional
+    const cleanResults = results.map(r => ({
+        ...r,
+        entered_by: r.entered_by || null,
+    }));
     const { data, error } = await supabase
         .from('test_results')
-        .upsert(results, { onConflict: 'test_id,student_id,subject_id' })
+        .upsert(cleanResults, { onConflict: 'test_id,student_id,subject_id' })
         .select();
-    if (error) throw error;
+    if (error) {
+        console.error('upsertTestResults failed:', error.message, error.details, error.hint, error.code);
+        throw error;
+    }
     return data;
 }
 
@@ -315,12 +338,20 @@ export async function getFeeStructureByStandard(standardId) {
 }
 
 export async function recordPayment(payment) {
+    // Make recorded_by optional
+    const cleanPayment = {
+        ...payment,
+        recorded_by: payment.recorded_by || null,
+    };
     const { data, error } = await supabase
         .from('fee_payments')
-        .insert(payment)
+        .insert(cleanPayment)
         .select()
         .single();
-    if (error) throw error;
+    if (error) {
+        console.error('recordPayment failed:', error.message, error.details, error.hint, error.code);
+        throw error;
+    }
     return data;
 }
 
@@ -337,12 +368,20 @@ export async function getNotifications(userRole, limit = 50) {
 }
 
 export async function createNotification(notification) {
+    // Make sent_by optional
+    const cleanNotif = {
+        ...notification,
+        sent_by: notification.sent_by || null,
+    };
     const { data, error } = await supabase
         .from('notifications')
-        .insert(notification)
+        .insert(cleanNotif)
         .select()
         .single();
-    if (error) throw error;
+    if (error) {
+        console.error('createNotification failed:', error.message, error.details, error.hint, error.code);
+        throw error;
+    }
     return data;
 }
 
@@ -379,12 +418,16 @@ export async function getResources(filters = {}) {
 }
 
 export async function uploadResource(resource) {
+    const cleanResource = { ...resource, uploaded_by: resource.uploaded_by || null };
     const { data, error } = await supabase
         .from('resources')
-        .insert(resource)
+        .insert(cleanResource)
         .select()
         .single();
-    if (error) throw error;
+    if (error) {
+        console.error('uploadResource failed:', error.message, error.details, error.hint, error.code);
+        throw error;
+    }
     return data;
 }
 

@@ -54,9 +54,19 @@ export default function Students() {
 
     const filtered = useMemo(() => {
         return (students || []).filter(s => {
+            // Standard filter: compare standard name strings
             if (standardFilter !== 'All' && s.standards?.name !== standardFilter) return false;
+            // Fee filter: lookup from fee summary, default to 'pending' if not found
             if (feeFilter !== 'All' && (feeStatusMap[s.id] || 'pending') !== feeFilter) return false;
-            if (search && !(s.name?.toLowerCase().includes(search.toLowerCase()) || s.id?.toLowerCase().includes(search.toLowerCase()))) return false;
+            // Search: match name (case-insensitive), roll_no (as string), or parent name
+            if (search) {
+                const q = search.toLowerCase();
+                const nameMatch = s.name?.toLowerCase().includes(q);
+                const rollMatch = String(s.roll_no || '').includes(q);
+                const parentMatch = s.parent_name?.toLowerCase().includes(q);
+                const phoneMatch = s.parent_phone?.includes(q);
+                if (!nameMatch && !rollMatch && !parentMatch && !phoneMatch) return false;
+            }
             return true;
         });
     }, [students, search, standardFilter, feeFilter, feeStatusMap]);

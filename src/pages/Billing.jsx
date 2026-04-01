@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../App';
 import { getFeeSummary, getFeeStructures, recordPayment, getStandards } from '../lib/api';
 import { IndianRupee, Download, Plus, X, Loader2 } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
 import { generateFeeReportPDF } from '../reports';
 
 export default function Billing() {
+    const { user } = useAuth();
     const [fees, setFees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -16,8 +18,12 @@ export default function Billing() {
     const load = async () => {
         setLoading(true);
         try {
+            const studentIds = (user.role === 'parent' || user.role === 'student')
+                ? (user.students || []).map(s => s.id)
+                : undefined;
+
             const [feeData, stds] = await Promise.all([
-                getFeeSummary(),
+                getFeeSummary({ studentIds }),
                 getStandards(),
             ]);
             setFees(feeData || []);

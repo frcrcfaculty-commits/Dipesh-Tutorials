@@ -1,11 +1,10 @@
 -- ============================================================
--- Dipesh Tutorials – Seed Data for POC Demo
--- Run this AFTER schema.sql and AFTER creating superadmin user
+-- Dipesh Tutorials – SAFE Seed Data (no DO blocks)
+-- Paste this entire file into Supabase SQL Editor and click Run.
+-- Run AFTER schema.sql has been executed successfully.
 -- ============================================================
 
--- ─── INSERT 20 SAMPLE STUDENTS ─────────────────────────────
--- Standards reference: 1=8th, 2=9th, 3=10th, 4=11th Com, 5=12th Com, 6=11th Sci, 7=12th Sci
-
+-- ─── PART 1: INSERT 20 STUDENTS ─────────────────────────────
 INSERT INTO students (name, roll_no, gender, standard_id, parent_name, parent_phone, date_of_birth, address) VALUES
 ('Aarav Sharma', 1, 'Male', 1, 'Mr. Rajesh Sharma', '+919876543210', '2012-03-15', 'Palghar'),
 ('Priya Patel', 2, 'Female', 1, 'Mrs. Sunita Patel', '+919876543211', '2012-07-22', 'Palghar'),
@@ -26,138 +25,171 @@ INSERT INTO students (name, roll_no, gender, standard_id, parent_name, parent_ph
 ('Varun Mishra', 1, 'Male', 7, 'Mrs. Kavita Mishra', '+919876543226', '2008-05-30', 'Palghar'),
 ('Pooja Yadav', 2, 'Female', 7, 'Mr. Ramesh Yadav', '+919876543227', '2008-11-12', 'Safala'),
 ('Nikhil Pandey', 3, 'Male', 5, 'Mrs. Pushpa Pandey', '+919876543228', '2008-04-08', 'Palghar'),
-('Sakshi Iyer', 4, 'Female', 5, 'Mr. Venkat Iyer', '+919876543229', '2008-09-25', 'Boisar');
+('Sakshi Iyer', 4, 'Female', 5, 'Mr. Venkat Iyer', '+919876543229', '2008-09-25', 'Boisar')
+ON CONFLICT DO NOTHING;
 
--- ─── CREATE A TEST ──────────────────────────────────────────
+-- ─── PART 2: TESTS ──────────────────────────────────────────
 INSERT INTO tests (id, name, standard_id, test_date) VALUES
 ('aaaaaaaa-0001-0001-0001-000000000001', 'Unit Test 1 - March 2026', 1, '2026-03-15'),
 ('aaaaaaaa-0001-0001-0001-000000000002', 'Unit Test 1 - March 2026', 2, '2026-03-15'),
-('aaaaaaaa-0001-0001-0001-000000000003', 'Unit Test 1 - March 2026', 3, '2026-03-15');
+('aaaaaaaa-0001-0001-0001-000000000003', 'Unit Test 1 - March 2026', 3, '2026-03-15')
+ON CONFLICT DO NOTHING;
 
--- ─── INSERT TEST RESULTS (8th standard, 3 students, 3 subjects) ───
--- Subject IDs: 1=Mathematics, 2=Science, 3=English (for 8th std)
--- Using the student names from above and guessing their UUIDs won't work,
--- so we use a DO block to look up IDs dynamically.
+-- ─── PART 3: TEST RESULTS (plain INSERTs, no DO block) ──────
+-- Aarav Sharma marks
+INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks)
+SELECT 'aaaaaaaa-0001-0001-0001-000000000001', s.id, sub.id, 78, 100
+FROM students s, subjects sub
+WHERE s.name = 'Aarav Sharma' AND s.standard_id = 1
+  AND sub.name = 'Mathematics' AND sub.standard_id = 1
+ON CONFLICT DO NOTHING;
 
-DO $$
-DECLARE
-    sid uuid;
-    sub_id int;
-    test_id uuid := 'aaaaaaaa-0001-0001-0001-000000000001';
-BEGIN
-    -- Student: Aarav Sharma (8th, roll 1)
-    SELECT id INTO sid FROM students WHERE name = 'Aarav Sharma' AND standard_id = 1 LIMIT 1;
-    IF sid IS NOT NULL THEN
-        SELECT id INTO sub_id FROM subjects WHERE name = 'Mathematics' AND standard_id = 1 LIMIT 1;
-        INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks) VALUES (test_id, sid, sub_id, 78, 100) ON CONFLICT DO NOTHING;
-        SELECT id INTO sub_id FROM subjects WHERE name = 'Science' AND standard_id = 1 LIMIT 1;
-        INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks) VALUES (test_id, sid, sub_id, 85, 100) ON CONFLICT DO NOTHING;
-        SELECT id INTO sub_id FROM subjects WHERE name = 'English' AND standard_id = 1 LIMIT 1;
-        INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks) VALUES (test_id, sid, sub_id, 92, 100) ON CONFLICT DO NOTHING;
-    END IF;
+INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks)
+SELECT 'aaaaaaaa-0001-0001-0001-000000000001', s.id, sub.id, 85, 100
+FROM students s, subjects sub
+WHERE s.name = 'Aarav Sharma' AND s.standard_id = 1
+  AND sub.name = 'Science' AND sub.standard_id = 1
+ON CONFLICT DO NOTHING;
 
-    -- Student: Priya Patel (8th, roll 2)
-    SELECT id INTO sid FROM students WHERE name = 'Priya Patel' AND standard_id = 1 LIMIT 1;
-    IF sid IS NOT NULL THEN
-        SELECT id INTO sub_id FROM subjects WHERE name = 'Mathematics' AND standard_id = 1 LIMIT 1;
-        INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks) VALUES (test_id, sid, sub_id, 65, 100) ON CONFLICT DO NOTHING;
-        SELECT id INTO sub_id FROM subjects WHERE name = 'Science' AND standard_id = 1 LIMIT 1;
-        INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks) VALUES (test_id, sid, sub_id, 42, 100) ON CONFLICT DO NOTHING;
-        SELECT id INTO sub_id FROM subjects WHERE name = 'English' AND standard_id = 1 LIMIT 1;
-        INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks) VALUES (test_id, sid, sub_id, 71, 100) ON CONFLICT DO NOTHING;
-    END IF;
+INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks)
+SELECT 'aaaaaaaa-0001-0001-0001-000000000001', s.id, sub.id, 92, 100
+FROM students s, subjects sub
+WHERE s.name = 'Aarav Sharma' AND s.standard_id = 1
+  AND sub.name = 'English' AND sub.standard_id = 1
+ON CONFLICT DO NOTHING;
 
-    -- Student: Rohan Desai (8th, roll 3)
-    SELECT id INTO sid FROM students WHERE name = 'Rohan Desai' AND standard_id = 1 LIMIT 1;
-    IF sid IS NOT NULL THEN
-        SELECT id INTO sub_id FROM subjects WHERE name = 'Mathematics' AND standard_id = 1 LIMIT 1;
-        INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks) VALUES (test_id, sid, sub_id, 88, 100) ON CONFLICT DO NOTHING;
-        SELECT id INTO sub_id FROM subjects WHERE name = 'Science' AND standard_id = 1 LIMIT 1;
-        INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks) VALUES (test_id, sid, sub_id, 91, 100) ON CONFLICT DO NOTHING;
-        SELECT id INTO sub_id FROM subjects WHERE name = 'English' AND standard_id = 1 LIMIT 1;
-        INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks) VALUES (test_id, sid, sub_id, 76, 100) ON CONFLICT DO NOTHING;
-    END IF;
-END $$;
+-- Priya Patel marks
+INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks)
+SELECT 'aaaaaaaa-0001-0001-0001-000000000001', s.id, sub.id, 65, 100
+FROM students s, subjects sub
+WHERE s.name = 'Priya Patel' AND s.standard_id = 1
+  AND sub.name = 'Mathematics' AND sub.standard_id = 1
+ON CONFLICT DO NOTHING;
 
--- ─── ATTENDANCE (last 5 school days for 8th std students) ───
-DO $$
-DECLARE
-    sid uuid;
-    d date;
-    statuses text[] := ARRAY['present', 'present', 'late', 'present', 'absent'];
-    i int;
-BEGIN
-    FOR sid IN SELECT id FROM students WHERE standard_id = 1
-    LOOP
-        FOR i IN 1..5
-        LOOP
-            d := CURRENT_DATE - (i * interval '1 day')::interval;
-            -- Skip Sundays
-            IF EXTRACT(DOW FROM d) != 0 THEN
-                INSERT INTO attendance (student_id, date, status, method)
-                VALUES (sid, d, statuses[1 + (i + hashtext(sid::text)) % 3]::attendance_status, 'manual')
-                ON CONFLICT (student_id, date) DO NOTHING;
-            END IF;
-        END LOOP;
-    END LOOP;
+INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks)
+SELECT 'aaaaaaaa-0001-0001-0001-000000000001', s.id, sub.id, 42, 100
+FROM students s, subjects sub
+WHERE s.name = 'Priya Patel' AND s.standard_id = 1
+  AND sub.name = 'Science' AND sub.standard_id = 1
+ON CONFLICT DO NOTHING;
 
-    -- Also add for 9th std
-    FOR sid IN SELECT id FROM students WHERE standard_id = 2
-    LOOP
-        FOR i IN 1..5
-        LOOP
-            d := CURRENT_DATE - (i * interval '1 day')::interval;
-            IF EXTRACT(DOW FROM d) != 0 THEN
-                INSERT INTO attendance (student_id, date, status, method)
-                VALUES (sid, d, statuses[1 + (i + hashtext(sid::text)) % 3]::attendance_status, 'manual')
-                ON CONFLICT (student_id, date) DO NOTHING;
-            END IF;
-        END LOOP;
-    END LOOP;
-END $$;
+INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks)
+SELECT 'aaaaaaaa-0001-0001-0001-000000000001', s.id, sub.id, 71, 100
+FROM students s, subjects sub
+WHERE s.name = 'Priya Patel' AND s.standard_id = 1
+  AND sub.name = 'English' AND sub.standard_id = 1
+ON CONFLICT DO NOTHING;
 
--- ─── FEE PAYMENTS (some students have paid) ─────────────────
-DO $$
-DECLARE
-    sid uuid;
-BEGIN
-    -- Aarav fully paid
-    SELECT id INTO sid FROM students WHERE name = 'Aarav Sharma' LIMIT 1;
-    IF sid IS NOT NULL THEN
-        INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date) VALUES (sid, 15000, 'upi', 'RCP-001', '2025-06-20');
-        INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date) VALUES (sid, 10000, 'cash', 'RCP-002', '2025-10-15');
-    END IF;
+-- Rohan Desai marks
+INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks)
+SELECT 'aaaaaaaa-0001-0001-0001-000000000001', s.id, sub.id, 88, 100
+FROM students s, subjects sub
+WHERE s.name = 'Rohan Desai' AND s.standard_id = 1
+  AND sub.name = 'Mathematics' AND sub.standard_id = 1
+ON CONFLICT DO NOTHING;
 
-    -- Priya partial
-    SELECT id INTO sid FROM students WHERE name = 'Priya Patel' LIMIT 1;
-    IF sid IS NOT NULL THEN
-        INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date) VALUES (sid, 10000, 'bank_transfer', 'RCP-003', '2025-07-01');
-    END IF;
+INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks)
+SELECT 'aaaaaaaa-0001-0001-0001-000000000001', s.id, sub.id, 91, 100
+FROM students s, subjects sub
+WHERE s.name = 'Rohan Desai' AND s.standard_id = 1
+  AND sub.name = 'Science' AND sub.standard_id = 1
+ON CONFLICT DO NOTHING;
 
-    -- Arjun (10th) paid in full
-    SELECT id INTO sid FROM students WHERE name = 'Arjun Singh' LIMIT 1;
-    IF sid IS NOT NULL THEN
-        INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date) VALUES (sid, 25000, 'cheque', 'RCP-004', '2025-06-15');
-    END IF;
+INSERT INTO test_results (test_id, student_id, subject_id, marks_obtained, max_marks)
+SELECT 'aaaaaaaa-0001-0001-0001-000000000001', s.id, sub.id, 76, 100
+FROM students s, subjects sub
+WHERE s.name = 'Rohan Desai' AND s.standard_id = 1
+  AND sub.name = 'English' AND sub.standard_id = 1
+ON CONFLICT DO NOTHING;
 
-    -- Karan (11th com) partial
-    SELECT id INTO sid FROM students WHERE name = 'Karan Nair' LIMIT 1;
-    IF sid IS NOT NULL THEN
-        INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date) VALUES (sid, 20000, 'upi', 'RCP-005', '2025-07-10');
-    END IF;
-END $$;
+-- ─── PART 4: ATTENDANCE (flat INSERTs, no DO block) ─────────
+-- 8th std students: last 5 weekdays
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '1 day', 'present'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 1
+ON CONFLICT (student_id, date) DO NOTHING;
 
--- ─── NOTIFICATIONS ──────────────────────────────────────────
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '2 days', 'present'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 1
+ON CONFLICT (student_id, date) DO NOTHING;
+
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '3 days', 'late'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 1
+ON CONFLICT (student_id, date) DO NOTHING;
+
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '4 days', 'present'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 1
+ON CONFLICT (student_id, date) DO NOTHING;
+
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '5 days', 'absent'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 1
+ON CONFLICT (student_id, date) DO NOTHING;
+
+-- 9th std students: last 5 weekdays
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '1 day', 'present'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 2
+ON CONFLICT (student_id, date) DO NOTHING;
+
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '2 days', 'late'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 2
+ON CONFLICT (student_id, date) DO NOTHING;
+
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '3 days', 'present'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 2
+ON CONFLICT (student_id, date) DO NOTHING;
+
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '4 days', 'present'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 2
+ON CONFLICT (student_id, date) DO NOTHING;
+
+INSERT INTO attendance (student_id, date, status, method)
+SELECT s.id, CURRENT_DATE - interval '5 days', 'absent'::attendance_status, 'manual'
+FROM students s WHERE s.standard_id = 2
+ON CONFLICT (student_id, date) DO NOTHING;
+
+-- ─── PART 5: FEE PAYMENTS ───────────────────────────────────
+-- Aarav fully paid
+INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date)
+SELECT id, 15000, 'upi', 'RCP-001', '2025-06-20'::date FROM students WHERE name = 'Aarav Sharma' LIMIT 1;
+INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date)
+SELECT id, 10000, 'cash', 'RCP-002', '2025-10-15'::date FROM students WHERE name = 'Aarav Sharma' LIMIT 1;
+
+-- Priya partial
+INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date)
+SELECT id, 10000, 'bank_transfer', 'RCP-003', '2025-07-01'::date FROM students WHERE name = 'Priya Patel' LIMIT 1;
+
+-- Arjun paid in full
+INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date)
+SELECT id, 25000, 'cheque', 'RCP-004', '2025-06-15'::date FROM students WHERE name = 'Arjun Singh' LIMIT 1;
+
+-- Karan partial
+INSERT INTO fee_payments (student_id, amount, payment_method, receipt_no, payment_date)
+SELECT id, 20000, 'upi', 'RCP-005', '2025-07-10'::date FROM students WHERE name = 'Karan Nair' LIMIT 1;
+
+-- ─── PART 6: NOTIFICATIONS ──────────────────────────────────
 INSERT INTO notifications (title, message, type, target_roles) VALUES
 ('Welcome to Dipesh Tutorials App', 'We are excited to launch our new digital platform. You can now view attendance, test scores, and more from your phone!', 'general', '{student,parent,admin,superadmin}'),
 ('Unit Test 1 Results Published', 'March 2026 Unit Test results have been uploaded. Check your Analytics page for detailed scores.', 'exam', '{student,parent}'),
 ('Fee Payment Reminder', 'Kindly clear any pending fee dues before April 15, 2026. Contact office for installment plans.', 'fee', '{parent}'),
 ('New Study Materials Uploaded', 'New Mathematics and Science notes have been added to the Resource Hub for 8th, 9th, and 10th standard students.', 'resource', '{student}');
 
--- ─── RESOURCES ──────────────────────────────────────────────
+-- ─── PART 7: RESOURCES ──────────────────────────────────────
 INSERT INTO resources (title, type, standard_id, subject_id, tags, is_missed_lecture) VALUES
 ('Algebra Basics - Chapter 1 Notes', 'PDF Notes', 1, (SELECT id FROM subjects WHERE name='Mathematics' AND standard_id=1 LIMIT 1), '{algebra,basics,chapter1}', false),
 ('Cell Biology Video Lecture', 'Video', 1, (SELECT id FROM subjects WHERE name='Science' AND standard_id=1 LIMIT 1), '{biology,cells,video}', false),
 ('Grammar Practice MCQs', 'MCQ Set', 1, (SELECT id FROM subjects WHERE name='English' AND standard_id=1 LIMIT 1), '{grammar,practice,mcq}', false),
 ('Quadratic Equations - Missed Lecture', 'PDF Notes', 2, (SELECT id FROM subjects WHERE name='Mathematics' AND standard_id=2 LIMIT 1), '{quadratic,equations}', true),
 ('Chemical Reactions PPT', 'PPT', 3, (SELECT id FROM subjects WHERE name='Science' AND standard_id=3 LIMIT 1), '{chemistry,reactions}', false);
+
+-- ─── DONE ───────────────────────────────────────────────────
+-- Verify: SELECT count(*) FROM students; → should be 20
+-- Verify: SELECT count(*) FROM test_results; → should be 9
+-- Verify: SELECT count(*) FROM attendance; → should be ~30

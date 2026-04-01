@@ -27,14 +27,16 @@ function ParentDashboard({ user }) {
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState(null);
 
+    const studentId = user?.students?.[0]?.id;
+
     const loadData = () => {
-        if (!user.profile?.student_id) { setLoading(false); return; }
+        if (!studentId) { setLoading(false); return; }
         setLoading(true);
         setFetchError(null);
         withTimeout(Promise.all([
-            getStudentAttendance(user.profile.student_id, 7),
+            getStudentAttendance(studentId, 7),
             getTests(),
-            getTestResults({ studentId: user.profile.student_id }),
+            getTestResults({ studentId: studentId }),
             getNotifications('parent', 5),
         ]), 15000).then(([attendance, tests, results, notifs]) => {
             const present = (attendance||[]).filter(a => a.status === 'present').length;
@@ -55,7 +57,7 @@ function ParentDashboard({ user }) {
         });
     };
 
-    useEffect(() => { loadData(); }, [user]);
+    useEffect(() => { loadData(); }, [studentId]);
 
     const present = att.filter(a => a.status === 'present').length;
     const total = att.length || 1;
@@ -63,13 +65,13 @@ function ParentDashboard({ user }) {
 
     if (loading) return <div className="loading-spinner" />;
     if (fetchError) return <RetryBanner message={fetchError} onRetry={loadData} />;
-    if (!user.profile?.student_id) return <div className="empty-state"><h3>No student linked to your account</h3></div>;
+    if (!studentId) return <div className="empty-state"><h3>No student linked to your account</h3></div>;
 
     return (
         <>
             <div style={{ marginBottom: 24, padding: '20px 24px', background: 'linear-gradient(135deg, #0A2351, #122D64)', borderRadius: 16, color: 'white' }}>
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', marginBottom: 4 }}>Welcome, {user.name}!</h2>
-                <p style={{ opacity: 0.7, fontSize: '0.9rem' }}>Parent Dashboard</p>
+                <p style={{ opacity: 0.7, fontSize: '0.9rem' }}>Parent Dashboard — {user.students?.[0]?.name}</p>
             </div>
             <div className="stats-grid">
                 <div className="stat-card navy"><div className="stat-icon navy"><CalendarCheck size={24} /></div><div className="stat-info"><h4>Attendance (7d)</h4><div className="stat-value">{Math.round(present/total*100)}%</div></div></div>
@@ -113,14 +115,16 @@ function StudentDashboard({ user }) {
     const [fetchError, setFetchError] = useState(null);
     const navigate = useNavigate();
 
+    const studentId = user?.students?.[0]?.id;
+
     const loadData = () => {
-        if (!user.profile?.id) { setLoading(false); return; }
+        if (!studentId) { setLoading(false); return; }
         setLoading(true);
         setFetchError(null);
         withTimeout(Promise.all([
-            getStudentAttendance(user.profile.id, 28),
+            getStudentAttendance(studentId, 28),
             getTests(),
-            getTestResults({ studentId: user.profile.id }),
+            getTestResults({ studentId: studentId }),
         ]), 15000).then(([attendance, tests, results]) => {
             setAtt(attendance||[]);
             const latest = (tests||[])[0];
@@ -138,12 +142,13 @@ function StudentDashboard({ user }) {
         });
     };
 
-    useEffect(() => { loadData(); }, [user]);
+    useEffect(() => { loadData(); }, [studentId]);
 
     const present = att.filter(a => a.status === 'present').length;
     const total = att.length || 1;
     if (loading) return <div className="loading-spinner" />;
     if (fetchError) return <RetryBanner message={fetchError} onRetry={loadData} />;
+    if (!studentId) return <div className="empty-state"><h3>Account Pending Setup</h3><p>Your student profile has not been configured yet.</p></div>;
 
     return (
         <>
@@ -158,7 +163,7 @@ function StudentDashboard({ user }) {
             <div className="card" style={{ marginTop: 24 }}>
                 <div className="card-header"><h3>Notifications</h3></div>
                 <div className="card-body">
-                    <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 24 }}>Log in to see notifications.</p>
+                    <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 24 }}>Check notifications page.</p>
                 </div>
             </div>
         </>

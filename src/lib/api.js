@@ -263,11 +263,14 @@ export async function upsertTestResults(results) {
 }
 
 // ─── FEES ──────────────────────────────────────────────────
-export async function getFeeSummary(standardId = null) {
+export async function getFeeSummary(filters = {}) {
     // Use the view
     let query = supabase.from('student_fee_summary').select('*');
-    if (standardId) {
-        // Filter by standard via student join
+    if (filters.standardId) {
+        query = query.eq('standard_name', filters.standardId);
+    }
+    if (filters.studentIds && filters.studentIds.length > 0) {
+        query = query.in('student_id', filters.studentIds);
     }
     const { data, error } = await query;
     if (error) throw error;

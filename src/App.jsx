@@ -26,23 +26,65 @@ function AuthProvider({ children }) {
         } catch { return null; }
     });
     const [loading, setLoading] = useState(true);
+    const fetchingRef = React.useRef(false);
+
+    async function fetchProfile(authUser) {
+        if (fetchingRef.current) return;
+        fetchingRef.current = true;
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*, as_student:students!students_profile_id_fkey(id, name, roll_no, standards(name, id), profile_id, parent_profile_id), as_parent:students!students_parent_profile_id_fkey(id, name, roll_no, standards(name, id), profile_id, parent_profile_id)')
+                .eq('id', authUser.id)
+                .abortSignal(controller.signal)
+                .single();
+            clearTimeout(timeout);
+
+            if (error) {
+                console.error('Profile fetch error:', error);
+            }
+
+            if (profile) {
+                const linkedStudents = [...(profile.as_student || []), ...(profile.as_parent || [])];
+                const userData = {
+                    uid: authUser.id,
+                    email: authUser.email,
+                    ...profile,
+                    students: linkedStudents
+                };
+                delete userData.as_student;
+                delete userData.as_parent;
+                setUser(userData);
+                localStorage.setItem('dt_user', JSON.stringify(userData));
+            }
+        } catch (err) {
+            console.error('Error fetching profile:', err);
+        } finally {
+            fetchingRef.current = false;
+            setLoading(false);
+        }
+    }
 
     useEffect(() => {
-        // Get initial session
+        // Get initial session — only fetch profile if no cached user
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session?.user) {
                 fetchProfile(session.user);
             } else {
+                setUser(null);
+                localStorage.removeItem('dt_user');
                 setLoading(false);
             }
+        }).catch(() => {
+            setLoading(false);
         });
 
-        // Listen for auth changes
+        // Only listen for sign-out events (login is handled explicitly)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                if (session?.user) {
-                    await fetchProfile(session.user);
-                } else {
+            (event, session) => {
+                if (event === 'SIGNED_OUT') {
                     setUser(null);
                     localStorage.removeItem('dt_user');
                     setLoading(false);
@@ -51,36 +93,16 @@ function AuthProvider({ children }) {
         );
 
         return () => subscription.unsubscribe();
-
-        async function fetchProfile(firebaseOrSupabaseUser) {
-            try {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('*, students(id, name, roll_no, standards(name, id), profile_id, parent_profile_id)')
-                    .eq('id', firebaseOrSupabaseUser.id)
-                    .single();
-
-                if (profile) {
-                    const userData = {
-                        uid: firebaseOrSupabaseUser.id,
-                        email: firebaseOrSupabaseUser.email,
-                        ...profile,
-                    };
-                    setUser(userData);
-                    localStorage.setItem('dt_user', JSON.stringify(userData));
-                }
-            } catch (err) {
-                console.error('Error fetching profile:', err);
-            } finally {
-                setLoading(false);
-            }
-        }
     }, []);
 
     const login = async (email, password) => {
         try {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) return { success: false, error: error.message };
+            // Fetch profile explicitly after successful auth
+            if (data?.user) {
+                await fetchProfile(data.user);
+            }
             return { success: true };
         } catch (err) {
             return { success: false, error: err.message };
@@ -129,7 +151,7 @@ function AppRoutes() {
             <Route path="/notifications" element={<ProtectedRoute><Layout><Notifications /></Layout></ProtectedRoute>} />
             <Route path="/course-mapping" element={<ProtectedRoute roles={['student', 'admin', 'superadmin']}><Layout><CourseMapping /></Layout></ProtectedRoute>} />
             <Route path="/students" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><Students /></Layout></ProtectedRoute>} />
-            <Route path="/analytics" element={<ProtectedRoute><Layout><Analytics /></Layout></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><Analytics /></Layout></ProtectedRoute>} />
             <Route path="/test-results" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><TestResults /></Layout></ProtectedRoute>} />
             <Route path="/user-management" element={<ProtectedRoute roles={['superadmin']}><Layout><UserManagement /></Layout></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />

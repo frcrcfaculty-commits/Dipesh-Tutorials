@@ -41,7 +41,7 @@ if [ -n "$VITE_SUPABASE_URL" ] && [ "$VITE_SUPABASE_URL" != "https://YOUR_PROJEC
         "$VITE_SUPABASE_URL/rest/v1/" \
         -H "apikey: $VITE_SUPABASE_ANON_KEY" \
         -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" 2>/dev/null || echo "000")
-    if [ "$HTTP" = "200" ] || [ "$HTTP" = "400" ]; then
+    if [ "$HTTP" = "200" ] || [ "$HTTP" = "400" ] || [ "$HTTP" = "401" ]; then
         pass "Supabase reachable (HTTP $HTTP)"
     else
         fail "Supabase unreachable (HTTP $HTTP) — check URL and project status"
@@ -100,7 +100,7 @@ section "Build Test"
 info "Running npm run build (~10s)..."
 build_out=$(npm run build 2>&1)
 if echo "$build_out" | grep -q "built in"; then
-    bt=$(echo "$build_out" | grep "built in" | grep -oP '\\d+\\.\d+(?=s)' | tail -1)
+    bt=$(echo "$build_out" | grep "built in" | sed -n 's/.*built in \([0-9.]*\)s.*/\1/p' | tail -1)
     pass "Build succeeded${bt:+ (${bt}s)}"
     if echo "$build_out" | grep -qi "warning"; then
         wc=$(echo "$build_out" | grep -ci "warning" || echo "0")

@@ -12,3 +12,5 @@ ios/App/build/
 .DS_Store
 *.log
 >>>>>>> origin/main
+.vercel
+.env*.local

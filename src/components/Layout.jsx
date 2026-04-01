@@ -4,7 +4,7 @@ import { useAuth } from '../App';
 import { supabase } from '../lib/supabase';
 import {
     LayoutDashboard, Users, CalendarCheck, BookOpen, IndianRupee, Bell, BarChart3,
-    GraduationCap, Settings, LogOut, Menu, X, ChevronRight
+    GraduationCap, Settings, LogOut, Menu, X, ChevronRight, Map
 } from 'lucide-react';
 
 export default function Layout({ children }) {
@@ -47,7 +47,8 @@ export default function Layout({ children }) {
         { path: '/test-results', label: 'Tests & Results', icon: GraduationCap, roles: ['admin', 'superadmin'] },
         { path: '/billing', label: 'Billing & Fees', icon: IndianRupee, roles: ['parent', 'admin', 'superadmin'] },
         { path: '/resources', label: 'Resources', icon: BookOpen, roles: ['student', 'admin', 'superadmin'] },
-        { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['admin', 'superadmin', 'student', 'parent'] },
+        { path: '/course-mapping', label: 'Course Mapping', icon: Map, roles: ['student', 'admin', 'superadmin'] },
+        { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['admin', 'superadmin'] },
         { path: '/notifications', label: 'Notifications', icon: Bell, dynamicBadge: true, roles: ['admin', 'superadmin', 'student', 'parent'] },
         { path: '/user-management', label: 'Users', icon: Settings, roles: ['superadmin'] },
     ];

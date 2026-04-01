@@ -5,26 +5,28 @@
    ======================================================== */
 
 :root {
-    /* ── Brand Colors ── */
-    --navy: #D4722A;
-    --navy-light: #E08940;
-    --navy-dark: #B55D1A;
-    --gold: #D4722A;
-    --gold-light: #E8A45C;
-    --gold-dark: #9E4E12;
+    /* ── Brand Colors (matched to dipeshtutorials.com) ── */
+    --navy: #0A2351;
+    --navy-light: #273c66;
+    --navy-dark: #031a3d;
+    --gold: #B6922E;
+    --gold-light: #f4bf00;
+    --gold-dark: #8B6F22;
+    --blue: #21a7d0;
+    --purple: #4e49a1;
 
     /* ── Functional ── */
-    --bg: #F7F7F7;
+    --bg: #f3f8f9;
     --bg-card: #FFFFFF;
-    --bg-sidebar: #2D2D2D;
-    --text: #1A1A1A;
-    --text-muted: #555555;
-    --text-light: #888888;
-    --border: #E0E0E0;
-    --success: #10B981;
-    --warning: #F59E0B;
+    --bg-sidebar: #0A2351;
+    --text: #111111;
+    --text-muted: #505050;
+    --text-light: #9CA3AF;
+    --border: #E5E7EB;
+    --success: #0c8b51;
+    --warning: #f4bf00;
     --danger: #EF4444;
-    --info: #3B82F6;
+    --info: #21a7d0;
 
     /* ── Spacing ── */
     --space-xs: 4px;
@@ -382,7 +384,8 @@ img {
 
 .btn-primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 24px rgba(232, 96, 10, 0.35);
+    box-shadow: 0 8px 24px rgba(33, 167, 208, 0.35);
+    background: #21a7d0;
 }
 
 .btn-primary:active {
@@ -443,7 +446,7 @@ img {
 /* ── Sidebar ── */
 .sidebar {
     width: var(--sidebar-width);
-    background: linear-gradient(180deg, #2D2D2D 0%, #1A1A1A 100%);
+    background: linear-gradient(180deg, var(--navy-dark) 0%, var(--navy) 100%);
     color: white;
     display: flex;
     flex-direction: column;
@@ -817,8 +820,8 @@ img {
 }
 
 .stat-icon.blue {
-    background: rgba(59, 130, 246, 0.08);
-    color: var(--info);
+    background: rgba(33, 167, 208, 0.08);
+    color: #21a7d0;
 }
 
 .stat-icon.red {

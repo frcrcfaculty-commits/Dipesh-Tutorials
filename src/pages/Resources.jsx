@@ -21,6 +21,8 @@ export default function Resources() {
     const [showUpload, setShowUpload] = useState(false);
     const [form, setForm] = useState({ title: '', type: 'PDF Notes', standard_id: '', subject_id: '', file: null });
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+    const isStudent = user?.role === 'student';
+    const studentStandardId = user?.students?.[0]?.standard_id;
 
     useEffect(() => { loadAll(); }, []);
 
@@ -53,9 +55,11 @@ export default function Resources() {
         setUploading(false);
     }
 
+    const effectiveStdFilter = isStudent && studentStandardId ? String(studentStandardId) : filterStd;
+
     const filtered = resources.filter(r => {
         if (filterType !== 'All' && r.type !== filterType) return false;
-        if (filterStd !== 'all' && r.standard_id !== filterStd) return false;
+        if (effectiveStdFilter !== 'all' && String(r.standard_id) !== effectiveStdFilter) return false;
         return true;
     });
     const types = ['All', ...new Set(resources.map(r => r.type).filter(Boolean))];
@@ -111,11 +115,18 @@ export default function Resources() {
                 <div className="filter-chips">
                     {types.map(t => <button key={t} className={`filter-chip ${filterType===t?'active':''}`} onClick={() => setFilterType(t)}>{t}</button>)}
                 </div>
-                <select value={filterStd} onChange={e => setFilterStd(e.target.value)}
-                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-raised)' }}>
-                    <option value="all">All Standards</option>
-                    {standards.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                {isStudent && studentStandardId && (
+                    <div style={{ background: 'rgba(33,167,208,0.1)', color: 'var(--navy)', padding: '8px 16px', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600 }}>
+                        Showing resources for {standards.find(s => String(s.id) === String(studentStandardId))?.name || 'your'} Standard
+                    </div>
+                )}
+                {!isStudent && (
+                    <select value={filterStd} onChange={e => setFilterStd(e.target.value)}
+                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-raised)' }}>
+                        <option value="all">All Standards</option>
+                        {standards.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                )}
             </div>
 
             {loading ? <div className="loading-spinner" /> : fetchError ? (

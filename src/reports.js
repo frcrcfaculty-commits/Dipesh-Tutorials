@@ -7,7 +7,7 @@ export function generateStudentReportPDF(students, filters = {}) {
     const pageWidth = doc.internal.pageSize.getWidth();
 
     // Header
-    doc.setFillColor(15, 82, 186);
+    doc.setFillColor(10, 35, 81);
     doc.rect(0, 0, pageWidth, 35, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
@@ -39,7 +39,7 @@ export function generateStudentReportPDF(students, filters = {}) {
             s.parentPhone || s.phone || '—',
         ]),
         styles: { fontSize: 8 },
-        headStyles: { fillColor: [15, 82, 186], textColor: 255 },
+        headStyles: { fillColor: [10, 35, 81], textColor: 255 },
         alternateRowStyles: { fillColor: [245, 247, 250] },
         margin: { left: 14, right: 14 },
     });
@@ -61,7 +61,7 @@ export function generateAttendanceReportPDF(records, standard = 'All') {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    doc.setFillColor(16, 185, 129);
+    doc.setFillColor(12, 139, 81);
     doc.rect(0, 0, pageWidth, 35, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
@@ -90,7 +90,7 @@ export function generateAttendanceReportPDF(records, standard = 'All') {
             r.arrivalTime || '—',
         ]),
         styles: { fontSize: 8 },
-        headStyles: { fillColor: [16, 185, 129], textColor: 255 },
+        headStyles: { fillColor: [12, 139, 81], textColor: 255 },
         alternateRowStyles: { fillColor: [245, 247, 250] },
         columnStyles: {
             3: { cellWidth: 25 },
@@ -98,8 +98,8 @@ export function generateAttendanceReportPDF(records, standard = 'All') {
         didParseCell: (data) => {
             if (data.column.index === 3 && data.section === 'body') {
                 const status = data.cell.raw;
-                if (status === 'PRESENT') doc.setTextColor(16, 185, 129);
-                else if (status === 'LATE') doc.setTextColor(245, 158, 11);
+                if (status === 'PRESENT') doc.setTextColor(12, 139, 81);
+                else if (status === 'LATE') doc.setTextColor(244, 191, 0);
                 else if (status === 'ABSENT') doc.setTextColor(239, 68, 68);
             }
         },
@@ -122,7 +122,7 @@ export function generateFeeReportPDF(fees, standard = 'All') {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    doc.setFillColor(245, 158, 11);
+    doc.setFillColor(182, 146, 46);
     doc.rect(0, 0, pageWidth, 35, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
@@ -152,7 +152,7 @@ export function generateFeeReportPDF(fees, standard = 'All') {
             (f.feeStatus || 'pending').toUpperCase(),
         ]),
         styles: { fontSize: 8 },
-        headStyles: { fillColor: [245, 158, 11], textColor: 255 },
+        headStyles: { fillColor: [182, 146, 46], textColor: 255 },
         alternateRowStyles: { fillColor: [245, 247, 250] },
         margin: { left: 14, right: 14 },
     });
@@ -173,7 +173,7 @@ export function generateTestResultReportPDF(results, standard = 'All') {
     const doc = new jsPDF('l');
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    doc.setFillColor(139, 92, 246);
+    doc.setFillColor(78, 73, 161);
     doc.rect(0, 0, pageWidth, 35, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
@@ -208,7 +208,7 @@ export function generateTestResultReportPDF(results, standard = 'All') {
             ];
         }),
         styles: { fontSize: 8 },
-        headStyles: { fillColor: [139, 92, 246], textColor: 255 },
+        headStyles: { fillColor: [78, 73, 161], textColor: 255 },
         alternateRowStyles: { fillColor: [245, 247, 250] },
         margin: { left: 14, right: 14 },
     });

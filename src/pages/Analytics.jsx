@@ -34,9 +34,14 @@ export default function Analytics() {
 
     useEffect(() => {
         if (!selectedTest) return;
+        const studentId = (user.role === 'student' || user.role === 'parent')
+            ? user.students?.[0]?.id : null;
         getTestResults({ testId: selectedTest.id, standardId: selectedStd !== 'all' ? selectedStd : undefined })
-            .then(r => setResults(r||[])).catch(() => setResults([]));
-    }, [selectedTest, selectedStd]);
+            .then(r => {
+                const data = r || [];
+                setResults(studentId ? data.filter(d => d.student_id === studentId) : data);
+            }).catch(() => setResults([]));
+    }, [selectedTest, selectedStd, user]);
 
     const subjectAverages = {};
     (results||[]).forEach(r => {
@@ -103,7 +108,7 @@ export default function Analytics() {
                                         <XAxis type="number" domain={[0,100]} tickFormatter={v => `${v}%`} />
                                         <YAxis type="category" dataKey="subject" width={100} fontSize={12} />
                                         <Tooltip formatter={v => `${v}%`} />
-                                        <Bar dataKey="avg" fill="#E8600A" radius={[0,4,4,0]} />
+                                        <Bar dataKey="avg" fill="#0A2351" radius={[0,4,4,0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -117,7 +122,7 @@ export default function Analytics() {
                                         <XAxis dataKey="grade" />
                                         <YAxis />
                                         <Tooltip formatter={(v,name) => [`${v} students`, name]} />
-                                        <Bar dataKey="count" fill="#E8600A" radius={[4,4,0,0]} />
+                                        <Bar dataKey="count" fill="#B6922E" radius={[4,4,0,0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -131,7 +136,7 @@ export default function Analytics() {
                                     <PolarGrid />
                                     <PolarAngleAxis dataKey="subject" fontSize={12} />
                                     <PolarRadiusAxis domain={[0,100]} />
-                                    <Radar name="Avg %" dataKey="avg" stroke="#E8600A" fill="#E8600A" fillOpacity={0.4} />
+                                    <Radar name="Avg %" dataKey="avg" stroke="#0A2351" fill="#0A2351" fillOpacity={0.4} />
                                 </RadarChart>
                             </ResponsiveContainer>
                         </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
@@ -14,7 +14,6 @@ import Analytics from './pages/Analytics';
 import TestResults from './pages/TestResults';
 import UserManagement from './pages/UserManagement';
 
-// ─── Auth Context ──────────────────────────
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
@@ -26,7 +25,7 @@ function AuthProvider({ children }) {
         } catch { return null; }
     });
     const [loading, setLoading] = useState(true);
-    const fetchingRef = React.useRef(false);
+    const fetchingRef = useRef(false);
 
     async function fetchProfile(authUser) {
         if (fetchingRef.current) return;
@@ -67,8 +66,22 @@ function AuthProvider({ children }) {
         }
     }
 
+    // Periodic session health check every 5 minutes
     useEffect(() => {
-        // Get initial session — only fetch profile if no cached user
+        const interval = setInterval(async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session && user) {
+                    setUser(null);
+                    localStorage.removeItem('dt_user');
+                    window.location.hash = '#/login';
+                }
+            } catch (_) {}
+        }, 300000);
+        return () => clearInterval(interval);
+    }, [user]);
+
+    useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session?.user) {
                 fetchProfile(session.user);
@@ -81,13 +94,16 @@ function AuthProvider({ children }) {
             setLoading(false);
         });
 
-        // Only listen for sign-out events (login is handled explicitly)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event, session) => {
-                if (event === 'SIGNED_OUT') {
+                if (event === 'SIGNED_OUT' || !session) {
                     setUser(null);
                     localStorage.removeItem('dt_user');
                     setLoading(false);
+                    window.location.hash = '#/login';
+                }
+                if (event === 'TOKEN_REFRESHED' && session?.user) {
+                    console.log('Session refreshed');
                 }
             }
         );
@@ -99,7 +115,6 @@ function AuthProvider({ children }) {
         try {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) return { success: false, error: error.message };
-            // Fetch profile explicitly after successful auth
             if (data?.user) {
                 await fetchProfile(data.user);
             }

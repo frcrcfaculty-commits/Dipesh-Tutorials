@@ -45,8 +45,12 @@ export default function Notifications() {
     useEffect(() => { load(); }, []);
     useEffect(() => { if (showForm) loadStandards(); }, [showForm]);
 
+    const canSend = form.title.trim() && form.message.trim() && !sending;
+
     const handleSend = async (e) => {
         e.preventDefault();
+        if (!form.title.trim()) { showToast("Please enter a title", "error"); return; }
+        if (!form.message.trim()) { showToast("Please enter a message", "error"); return; }
         setSending(true);
         try {
             await createNotification({ ...form, sent_by: user.id });
@@ -112,7 +116,7 @@ export default function Notifications() {
                     <div className="card-body" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 24, marginBottom: 16 }}>
                         <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <div className="form-row">
-                                <div className="form-group"><label>Title *</label><input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Notification title" /></div>
+                                <div className="form-group"><label>Title *</label><input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Notification title" aria-required="true" /></div>
                                 <div className="form-group"><label>Type</label>
                                     <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
                                         <option value="general">General</option>
@@ -123,7 +127,7 @@ export default function Notifications() {
                                     </select>
                                 </div>
                             </div>
-                            <div className="form-group"><label>Message *</label><textarea required rows={3} value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))} placeholder="Write your message..." /></div>
+                            <div className="form-group"><label>Message *</label><textarea required rows={3} value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))} placeholder="Write your message..." aria-required="true" /></div>
 
                             {/* Audience Selection */}
                             <div className="form-group">
@@ -145,7 +149,7 @@ export default function Notifications() {
                             </div>
 
                             <div style={{ display: 'flex', gap: 8 }}>
-                                <button type="submit" className="btn-primary btn-small" disabled={sending}>{sending ? 'Sending...' : 'Send'}</button>
+                                <button type="submit" className="btn-primary btn-small" disabled={!canSend} aria-label="Send notification">{sending ? 'Sending...' : 'Send'}</button>
                                 <button type="button" className="btn-secondary btn-small" onClick={() => setShowForm(false)}>Cancel</button>
                             </div>
                         </form>

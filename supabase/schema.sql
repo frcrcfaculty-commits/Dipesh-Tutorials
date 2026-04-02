@@ -391,3 +391,28 @@ create policy "Anyone can read subjects" on subjects
 alter table fee_structures enable row level security;
 create policy "Anyone can read fee structures" on fee_structures
     for select using (true);
+
+
+-- ============================================================
+-- Additional constraints (added for data integrity sprint)
+-- Run separately if database already has data
+-- ============================================================
+DO $$ BEGIN
+    ALTER TABLE students ADD CONSTRAINT chk_roll_no_positive CHECK (roll_no > 0);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE test_results ADD CONSTRAINT chk_marks_valid CHECK (marks_obtained >= 0 AND marks_obtained <= max_marks);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE test_results ADD CONSTRAINT chk_max_marks_positive CHECK (max_marks > 0);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE fee_payments ADD CONSTRAINT chk_payment_positive CHECK (amount > 0);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

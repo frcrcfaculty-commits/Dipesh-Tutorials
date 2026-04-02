@@ -13,6 +13,7 @@ import Students from './pages/Students';
 import Analytics from './pages/Analytics';
 import TestResults from './pages/TestResults';
 import UserManagement from './pages/UserManagement';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -179,7 +180,9 @@ export default function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <AppRoutes />
+                <ErrorBoundary>
+                    <AppRoutes />
+                </ErrorBoundary>
             </AuthProvider>
         </BrowserRouter>
     );

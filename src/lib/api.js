@@ -264,6 +264,26 @@ export async function createTest(test) {
 }
 
 export async function getTestResults(filters = {}) {
+    // Two-query approach: first get student IDs matching standard, then filter results
+    if (filters.standardId) {
+        const { data: stdStudents } = await supabase
+            .from('students')
+            .select('id')
+            .eq('standard_id', filters.standardId);
+        const studentIds = (stdStudents || []).map(s => s.id);
+        if (studentIds.length === 0) return [];
+        let query = supabase
+            .from('test_results')
+            .select('*, students(name, roll_no, standard_id, standards(name)), subjects(name), tests(name, test_date)')
+            .in('student_id', studentIds);
+        if (filters.testId) query = query.eq('test_id', filters.testId);
+        if (filters.studentId) query = query.eq('student_id', filters.studentId);
+        if (filters.subjectId) query = query.eq('subject_id', filters.subjectId);
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (error) throw error;
+        return data;
+    }
+
     let query = supabase
         .from('test_results')
         .select('*, students(name, roll_no, standard_id, standards(name)), subjects(name), tests(name, test_date)');

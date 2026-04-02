@@ -118,33 +118,40 @@ create table fee_payments (
     created_at timestamptz default now()
 );
 
+-- ─── FEE CONFIG ───────────────────────────────────────────
+-- Controls which academic year the student_fee_summary uses
+create table if not exists academic_year_config (
+    id serial primary key,
+    academic_year text not null default '2025-26',
+    is_active boolean default true
+);
+
+-- Seed default if empty
+insert into academic_year_config (academic_year, is_active)
+select '2025-26', true
+where not exists (select 1 from academic_year_config);
+
 create or replace view student_fee_summary as
-with academic_year as (
-    select case
-        when extract(month from current_date) >= 4
-        then to_char(current_date, 'YYYY') || '-' || to_char(current_date + interval '1 year', 'YY')
-        else to_char(current_date - interval '1 year', 'YYYY') || '-' || to_char(current_date, 'YY')
-    end as year
-)
 select
     s.id as student_id,
     s.name as student_name,
     st.name as standard_name,
     fs.total_amount as total_fees,
-    coalesce(sum(fp.amount), 0) as paid_fees,
-    fs.total_amount - coalesce(sum(fp.amount), 0) as balance,
+    coalesce(sum(fp.amount), 0)::numeric as paid_fees,
+    coalesce(fs.total_amount, 0)::numeric - coalesce(sum(fp.amount), 0)::numeric as balance,
     case
-        when coalesce(sum(fp.amount), 0) >= fs.total_amount then 'paid'
-        when coalesce(sum(fp.amount), 0) > 0 then 'pending'
-        else 'overdue'
+        when coalesce(fs.total_amount, 0) = 0 then 'pending'::text
+        when coalesce(sum(fp.amount), 0) >= coalesce(fs.total_amount, 0) then 'paid'::text
+        when coalesce(sum(fp.amount), 0) > 0 then 'pending'::text
+        else 'overdue'::text
     end as status
 from students s
 join standards st on s.standard_id = st.id
-cross join academic_year ay
-left join fee_structures fs on s.standard_id = fs.standard_id and fs.academic_year = ay.year
+left join fee_structures fs on s.standard_id = fs.standard_id
+    and fs.academic_year = (select academic_year from academic_year_config where is_active = true limit 1)
 left join fee_payments fp on s.id = fp.student_id
 where s.is_active = true
-group by s.id, s.name, st.name, fs.total_amount, ay.year;
+group by s.id, s.name, st.name, fs.total_amount;
 
 -- ─── ATTENDANCE ────────────────────────────────────────────
 create table attendance (

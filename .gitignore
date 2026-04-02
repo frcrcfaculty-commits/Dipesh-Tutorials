@@ -14,3 +14,4 @@ ios/App/build/
 >>>>>>> origin/main
 .vercel
 .env*.local
+supabase/.temp/

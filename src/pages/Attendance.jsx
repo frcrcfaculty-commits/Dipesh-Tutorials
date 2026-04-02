@@ -3,6 +3,8 @@ import { useAuth } from '../App';
 import { getAttendanceByDate, getStandards, markAttendance, getStudents, getStudentAttendance } from '../lib/api';
 import { Calendar, Loader2 } from 'lucide-react';
 import { showToast } from '../utils';
+import { SkeletonAttendance } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 
 function formatDate(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -51,7 +53,7 @@ function ParentStudentAttendance({ user }) {
         });
     }
 
-    if (loading) return <div style={{ textAlign: 'center', padding: 48 }}><div className="loading-spinner" /></div>;
+    if (loading) return <SkeletonAttendance />;
 
     return (
         <>
@@ -231,7 +233,7 @@ function AdminAttendance() {
                 </div>
                 <div className="card-body" style={{ padding: 0 }}>
                     {loading ? (
-                        <div style={{ textAlign: 'center', padding: 48 }}><div className="loading-spinner" /></div>
+                        <div style={{ textAlign: 'center', padding: 48 }}><SkeletonAttendance /></div>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
                             <table className="data-table">
@@ -269,7 +271,7 @@ function AdminAttendance() {
                                             </td>
                                         </tr>
                                     ))}
-                                    {filteredStudents.length === 0 && <tr><td colSpan={isMobile ? 4 : 7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No students found</td></tr>}
+                                    {filteredStudents.length === 0 ? <tr><td colSpan={isMobile ? 4 : 7}><EmptyState type="attendance" /></td></tr> : null}
                                 </tbody>
                             </table>
                         </div>

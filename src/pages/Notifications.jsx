@@ -3,6 +3,8 @@ import { useAuth } from '../App';
 import { getNotifications, createNotification, markNotificationRead, getStandards } from '../lib/api';
 import { Bell, Send, CheckCircle, BellRing, BellOff } from 'lucide-react';
 import { showToast, playNotificationTone } from '../utils';
+import { SkeletonNotifications } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 
 export default function Notifications() {
     const { user } = useAuth();
@@ -157,8 +159,8 @@ export default function Notifications() {
                 )}
 
                 <div className="card-body" style={{ padding: 0 }}>
-                    {loading ? <div style={{ textAlign: 'center', padding: 48 }}><div className="loading-spinner" /></div> :
-                        notifications.length === 0 ? <p style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>No notifications yet.</p> :
+                    {loading ? <div style={{ padding: 24 }}><SkeletonNotifications rows={5} /></div> :
+                        notifications.length === 0 ? <EmptyState type="notifications" onAction={() => setShowForm(true)} /> :
                             notifications.map(n => (
                                 <div key={n.id} style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 12, background: n.read ? 'transparent' : 'rgba(182,146,46,0.04)' }} onClick={() => handleRead(n.id)}>
                                     <div style={{ flex: 1 }}>

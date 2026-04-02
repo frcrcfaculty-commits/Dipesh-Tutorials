@@ -4,6 +4,8 @@ import { getDashboardStats, getStudents, getStudentAttendance, getTests, getTest
 import { Users, CalendarCheck, IndianRupee, BarChart3, AlertCircle, CheckCircle, ArrowRight, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { useNavigate } from 'react-router-dom';
+import { SkeletonDashboard } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 import { showToast, withTimeout } from '../utils';
 
 const COLORS = ['#0A2351', '#B6922E', '#10B981', '#3B82F6', '#EF4444'];
@@ -28,7 +30,6 @@ function ParentDashboard({ user }) {
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState(null);
     const navigate = useNavigate();
-
     const studentId = user?.students?.[0]?.id;
 
     const loadData = () => {
@@ -70,7 +71,7 @@ function ParentDashboard({ user }) {
     const total = att.length || 1;
     const last7 = att.slice(-7).map(a => ({ date: (a.date||'').slice(5), status: a.status === 'present' ? 1 : a.status === 'late' ? 0.5 : 0 }));
 
-    if (loading) return <div className="loading-spinner" />;
+    if (loading) return <SkeletonDashboard />;
     if (fetchError) return <RetryBanner message={fetchError} onRetry={loadData} />;
     if (!studentId) return <div className="empty-state"><h3>No student linked to your account</h3></div>;
 
@@ -140,7 +141,6 @@ function StudentDashboard({ user }) {
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState(null);
     const navigate = useNavigate();
-
     const studentId = user?.students?.[0]?.id;
 
     const loadData = () => {
@@ -172,7 +172,7 @@ function StudentDashboard({ user }) {
 
     const present = att.filter(a => a.status === 'present').length;
     const total = att.length || 1;
-    if (loading) return <div className="loading-spinner" />;
+    if (loading) return <SkeletonDashboard />;
     if (fetchError) return <RetryBanner message={fetchError} onRetry={loadData} />;
     if (!studentId) return <div className="empty-state"><h3>Account Pending Setup</h3><p>Your student profile has not been configured yet.</p></div>;
 
@@ -241,8 +241,9 @@ function AdminDashboard() {
 
     useEffect(() => { loadData(); }, []);
 
-    if (loading) return <div className="loading-spinner" />;
+    if (loading) return <SkeletonDashboard />;
     if (fetchError) return <RetryBanner message={fetchError} onRetry={loadData} />;
+    if (stats.totalStudents === 0) return <EmptyState type="students" onAction={() => window.location.hash = '#/students'} />;
 
     return (
         <>
@@ -266,7 +267,9 @@ function AdminDashboard() {
                                     <Bar dataKey="students" fill="#0A2351" radius={[4,4,0,0]} />
                                 </BarChart>
                             </ResponsiveContainer>
-                        ) : <div className="empty-state"><Users /><h3>No data</h3></div>}
+                        ) : (
+                            <EmptyState type="chart" customSubtitle="Add students to see this chart" />
+                        )}
                     </div>
                 </div>
                 <div className="card">
@@ -282,7 +285,7 @@ function AdminDashboard() {
                                     <Tooltip />
                                 </PieChart>
                             </ResponsiveContainer>
-                        ) : <div className="empty-state"><IndianRupee /><h3>No fee data</h3></div>}
+                        ) : <EmptyState type="chart" customSubtitle="Record fee payments to see this chart" />}
                     </div>
                 </div>
             </div>

@@ -4,6 +4,8 @@ import { getTests, getTestResults, getStandards, getStudents } from '../lib/api'
 import { BarChart3, RefreshCw, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import { showToast, withTimeout } from '../utils';
+import { SkeletonStatGrid, SkeletonChart } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 
 export default function Analytics() {
     const { user } = useAuth();
@@ -63,7 +65,7 @@ export default function Analytics() {
     const total = results.length || 1;
     const barData = Object.entries(gradeDist).filter(([_,v]) => v > 0).map(([grade, count]) => ({ grade, count, percent: Math.round(count/total*100) }));
 
-    if (loading) return <div className="loading-spinner" />;
+    if (loading) return <><SkeletonStatGrid count={4} /><div style={{ marginTop: 24 }}><SkeletonChart height={300} /></div></>;
     if (fetchError) return (
         <div className="empty-state" style={{ padding: 48 }}>
             <AlertCircle size={40} style={{ color: 'var(--danger)', marginBottom: 12 }} />
@@ -92,7 +94,7 @@ export default function Analytics() {
             </div>
 
             {results.length === 0 ? (
-                <div className="empty-state"><BarChart3 /><h3>No data available</h3><p>Results will appear here after tests are conducted.</p></div>
+                <EmptyState type="analytics" />
             ) : (
                 <>
                     <div className="stats-grid" style={{ marginBottom: 24 }}>

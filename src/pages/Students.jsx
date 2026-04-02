@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getStudents, getStandards, addStudent, updateStudent, deleteStudent, getStudentStats, getFeeSummary } from '../lib/api';
 import { Search, Users, Download, Plus, X, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
+import { SkeletonStatGrid, SkeletonTable } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 import { generateStudentReportPDF } from '../reports';
 
 // TODO: Fee status is computed client-side by fetching all payments + structures.
@@ -151,7 +153,7 @@ export default function Students() {
         showToast('CSV exported!');
     };
 
-    if (loading) return <div className="loading-spinner" />;
+    if (loading) return <><SkeletonStatGrid count={4} /><div style={{ marginTop: 24 }}><SkeletonTable rows={8} cols={5} /></div></>;
 
     return (
         <>
@@ -206,7 +208,11 @@ export default function Students() {
                                         </div></td>
                                     </tr>
                                 ))}
-                                {filtered.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No students found</td></tr>}
+                                {filtered.length === 0 && !search && standardFilter === 'All' ? (
+                                <tr><td colSpan={9}><EmptyState type="students" onAction={openAdd} /></td></tr>
+                            ) : filtered.length === 0 ? (
+                                <tr><td colSpan={9}><EmptyState type="search" /></td></tr>
+                            ) : null}
                             </tbody>
                         </table>
                     </div>

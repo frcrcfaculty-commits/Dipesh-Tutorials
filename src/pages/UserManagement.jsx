@@ -197,32 +197,32 @@ export default function UserManagement() {
 
             <div className="card">
                 <div className="card-header"><h3>User Accounts ({filtered.length})</h3></div>
-                <div className="card-body" style={{ padding: 0 }}>
+                <div className="card-body card-body-flush">
                     {loading ? <div className="empty-state"><div className="spinner" /></div> : (
-                        <div style={{ overflowX: 'auto' }}>
+                        <div className="table-scroll">
                             <table className="data-table">
                                 <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
                                     {filtered.map(p => (
                                         <tr key={p.id}>
-                                            <td style={{ fontWeight: 600 }}>{p.name}</td>
-                                            <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{p.email}</td>
+                                            <td className="td-bold">{p.name}</td>
+                                            <td className="td-muted">{p.email}</td>
                                             <td><span className={`badge ${p.role === 'superadmin' || p.role === 'admin' ? 'present' : p.role === 'student' ? 'late' : 'pending'}`}>{ROLE_LABELS[p.role]}</span></td>
                                             <td><span className={`badge ${p.is_active ? 'present' : 'absent'}`}>{p.is_active ? 'Active' : 'Inactive'}</span></td>
                                             <td>
-                                                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                                <div className="action-btns">
                                                     {(p.role === 'student' || p.role === 'parent') && (
-                                                        <button className="btn-secondary btn-small" style={{ padding: '4px 8px', fontSize: '0.7rem' }}
+                                                        <button className="btn-secondary btn-small btn-compact"
                                                             onClick={() => { setShowLink(p); setLinkStudentId(''); }}>
                                                             <Link2 size={12} /> Link
                                                         </button>
                                                     )}
-                                                    <button className="btn-secondary btn-small" style={{ padding: '4px 8px', fontSize: '0.7rem' }}
+                                                    <button className="btn-secondary btn-small btn-compact"
                                                         onClick={() => { setShowResetPw(p); setNewPw(''); }}>
                                                         <Key size={12} /> Reset
                                                     </button>
                                                     {p.id !== user.id && p.role !== 'superadmin' && p.is_active && (
-                                                        <button className="btn-secondary btn-small" style={{ padding: '4px 8px', fontSize: '0.7rem', color: 'var(--danger)' }}
+                                                        <button className="btn-secondary btn-small btn-compact btn-deactivate"
                                                             onClick={() => handleDeactivate(p)}>
                                                             Deactivate
                                                         </button>
@@ -241,23 +241,20 @@ export default function UserManagement() {
             {/* Create User Modal */}
             {showCreate && (
                 <div className="modal-overlay" onClick={() => !creating && setShowCreate(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
-                        <div className="modal-header"><h3>Create User Account</h3><button onClick={() => setShowCreate(false)} className="icon-btn" style={{ width: 32, height: 32 }}><X size={16} /></button></div>
+                    <div className="modal modal-md" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header"><h3>Create User Account</h3><button onClick={() => setShowCreate(false)} className="icon-btn icon-btn-sm"><X size={16} /></button></div>
                         <div className="modal-body">
                             <div className="form-group">
                                 <label>Full Name *</label>
-                                <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Full name"
-                                    style={{ width: '100%', padding: '10px 14px', border: '2px solid var(--border)', borderRadius: 'var(--radius-md)' }} />
+                                <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Full name" className="modal-input" />
                             </div>
                             <div className="form-group">
                                 <label>Email *</label>
-                                <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="user@email.com"
-                                    style={{ width: '100%', padding: '10px 14px', border: '2px solid var(--border)', borderRadius: 'var(--radius-md)' }} />
+                                <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="user@email.com" className="modal-input" />
                             </div>
                             <div className="form-group">
                                 <label>Password * (min 6 characters)</label>
-                                <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Temporary password"
-                                    style={{ width: '100%', padding: '10px 14px', border: '2px solid var(--border)', borderRadius: 'var(--radius-md)' }} />
+                                <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Temporary password" className="modal-input" />
                             </div>
                             <div className="form-group">
                                 <label>Role *</label>
@@ -270,7 +267,7 @@ export default function UserManagement() {
                                     </select>
                                 </div>
                             </div>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12, padding: '8px 12px', background: 'rgba(10,35,81,0.04)', borderRadius: 'var(--radius-sm)' }}>
+                            <p className="modal-hint">
                                 After creating, use "Link" to connect this account to a student record.
                             </p>
                             <button className="btn-primary" onClick={handleCreateUser} disabled={creating || !newEmail || !newName || !newPassword}>
@@ -284,10 +281,10 @@ export default function UserManagement() {
             {/* Link Student Modal */}
             {showLink && (
                 <div className="modal-overlay" onClick={() => !linking && setShowLink(null)}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
-                        <div className="modal-header"><h3>Link to Student</h3><button onClick={() => setShowLink(null)} className="icon-btn" style={{ width: 32, height: 32 }}><X size={16} /></button></div>
+                    <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header"><h3>Link to Student</h3><button onClick={() => setShowLink(null)} className="icon-btn icon-btn-sm"><X size={16} /></button></div>
                         <div className="modal-body">
-                            <p style={{ marginBottom: 16 }}>
+                            <p className="modal-description">
                                 Link <strong>{showLink.name}</strong> ({ROLE_LABELS[showLink.role]}) to a student record.
                                 {showLink.role === 'parent' ? ' This will set them as the parent for the selected student.' : ' This will set them as the student account holder.'}
                             </p>
@@ -303,12 +300,12 @@ export default function UserManagement() {
                                 </div>
                             </div>
                             {unlinkableStudents.length === 0 && (
-                                <p style={{ color: 'var(--warning)', fontSize: '0.85rem' }}>
-                                    <AlertCircle size={14} style={{ marginRight: 4 }} />
+                                <p className="modal-warning">
+                                    <AlertCircle size={14} className="warning-icon" />
                                     All students already have a {showLink.role === 'parent' ? 'parent' : 'student account'} linked. Add new students first.
                                 </p>
                             )}
-                            <button className="btn-primary" onClick={handleLinkStudent} disabled={linking || !linkStudentId} style={{ marginTop: 12 }}>
+                            <button className="btn-primary modal-action-btn" onClick={handleLinkStudent} disabled={linking || !linkStudentId}>
                                 <Link2 size={16} /> {linking ? 'Linking...' : 'Link Account'}
                             </button>
                         </div>
@@ -319,10 +316,10 @@ export default function UserManagement() {
             {/* Reset Password Modal */}
             {showResetPw && (
                 <div className="modal-overlay" onClick={() => !resetting && setShowResetPw(null)}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
-                        <div className="modal-header"><h3>Reset Password</h3><button onClick={() => setShowResetPw(null)} className="icon-btn" style={{ width: 32, height: 32 }}><X size={16} /></button></div>
+                    <div className="modal modal-xs" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header"><h3>Reset Password</h3><button onClick={() => setShowResetPw(null)} className="icon-btn icon-btn-sm"><X size={16} /></button></div>
                         <div className="modal-body">
-                            <p style={{ marginBottom: 16 }}>Send a password reset email to <strong>{showResetPw.email}</strong></p>
+                            <p className="modal-description">Send a password reset email to <strong>{showResetPw.email}</strong></p>
                             <button className="btn-primary" onClick={handleResetPassword} disabled={resetting}>
                                 <Mail size={16} /> {resetting ? 'Sending...' : 'Send Reset Email'}
                             </button>
@@ -330,6 +327,77 @@ export default function UserManagement() {
                     </div>
                 </div>
             )}
+
+            <style>{`
+                .card-body-flush {
+                    padding: 0;
+                }
+                .table-scroll {
+                    overflow-x: auto;
+                }
+                .td-bold {
+                    font-weight: 600;
+                }
+                .td-muted {
+                    font-size: 0.85rem;
+                    color: var(--text-muted);
+                }
+                .action-btns {
+                    display: flex;
+                    gap: 4px;
+                    flex-wrap: wrap;
+                }
+                .btn-compact {
+                    padding: 4px 8px;
+                    font-size: 0.7rem;
+                }
+                .btn-deactivate {
+                    color: var(--danger);
+                }
+                .modal-md {
+                    max-width: 480px;
+                }
+                .modal-sm {
+                    max-width: 450px;
+                }
+                .modal-xs {
+                    max-width: 400px;
+                }
+                .icon-btn-sm {
+                    width: 32px;
+                    height: 32px;
+                }
+                .modal-input {
+                    width: 100%;
+                    padding: 10px 14px;
+                    border: 2px solid var(--border);
+                    border-radius: var(--radius-md);
+                }
+                .modal-hint {
+                    font-size: 0.8rem;
+                    color: var(--text-muted);
+                    margin-bottom: 12px;
+                    padding: 8px 12px;
+                    background: rgba(10,35,81,0.04);
+                    border-radius: var(--radius-sm);
+                }
+                .modal-description {
+                    margin-bottom: 16px;
+                }
+                .modal-warning {
+                    color: var(--warning);
+                    font-size: 0.85rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .warning-icon {
+                    flex-shrink: 0;
+                }
+                .modal-action-btn {
+                    margin-top: 12px;
+                }
+            `}</style>
         </>
     );
 }

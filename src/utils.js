@@ -67,3 +67,56 @@ export function playNotificationTone() {
         // Silently fail if Web Audio not available
     }
 }
+
+/**
+ * Initialize pull-to-refresh for Capacitor native apps.
+ * Shows a gold progress bar at top when pulling down from scroll position 0.
+ * Triggers page reload when pulled past 95% threshold.
+ */
+export function initPullToRefresh() {
+    if (typeof window === 'undefined') return;
+
+    let startY = 0;
+    let indicator = null;
+
+    function getOrCreateIndicator() {
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'pull-refresh';
+            indicator.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; height: 3px;
+                background: var(--gold, #B6922E); transform: scaleX(0);
+                transform-origin: left; transition: transform 0.2s; z-index: 9999;
+            `;
+            document.body.prepend(indicator);
+        }
+        return indicator;
+    }
+
+    document.addEventListener('touchstart', (e) => {
+        if (window.scrollY === 0) startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (startY === 0 || window.scrollY > 0) return;
+        const dist = e.touches[0].clientY - startY;
+        if (dist > 0 && dist < 150) {
+            getOrCreateIndicator().style.transform = `scaleX(${dist / 150})`;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        const ind = document.getElementById('pull-refresh');
+        if (ind) {
+            const scale = parseFloat(ind.style.transform.replace('scaleX(', '').replace(')', ''));
+            if (scale >= 0.95) {
+                ind.style.background = 'var(--success, #0c8b51)';
+                ind.style.transform = 'scaleX(1)';
+                setTimeout(() => window.location.reload(), 300);
+            } else {
+                ind.style.transform = 'scaleX(0)';
+            }
+        }
+        startY = 0;
+    }, { passive: true });
+}

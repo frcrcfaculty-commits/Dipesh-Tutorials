@@ -76,11 +76,11 @@ export default function Resources() {
             </div>
 
             {showUpload && (
-                <div className="card" style={{ marginBottom: 24 }}>
+                <div className="card card-spaced">
                     <div className="card-header"><h3>Upload Resource</h3>
                         <button className="icon-btn" onClick={() => setShowUpload(false)}><X size={18} /></button>
                     </div>
-                    <form onSubmit={handleUpload} className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <form onSubmit={handleUpload} className="card-body form-stack">
                         <div className="form-row">
                             <div className="form-group"><label>Title *</label>
                                 <input required value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} placeholder="Resource title" /></div>
@@ -103,7 +103,7 @@ export default function Resources() {
                         </div>
                         <div className="form-group"><label>File</label>
                             <input type="file" onChange={e => setForm(p => ({...p, file: e.target.files[0]}))} /></div>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                        <div className="btn-group-right">
                             <button type="button" className="btn-secondary" onClick={() => setShowUpload(false)}>Cancel</button>
                             <button type="submit" className="btn-primary" disabled={uploading}>{uploading ? 'Uploading...' : 'Upload'}</button>
                         </div>
@@ -111,18 +111,17 @@ export default function Resources() {
                 </div>
             )}
 
-            <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+            <div className="filter-bar">
                 <div className="filter-chips">
                     {types.map(t => <button key={t} className={`filter-chip ${filterType===t?'active':''}`} onClick={() => setFilterType(t)}>{t}</button>)}
                 </div>
                 {isStudent && studentStandardId && (
-                    <div style={{ background: 'rgba(33,167,208,0.1)', color: 'var(--navy)', padding: '8px 16px', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600 }}>
+                    <div className="filter-info-badge">
                         Showing resources for {standards.find(s => String(s.id) === String(studentStandardId))?.name || 'your'} Standard
                     </div>
                 )}
                 {!isStudent && (
-                    <select value={filterStd} onChange={e => setFilterStd(e.target.value)}
-                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-raised)' }}>
+                    <select value={filterStd} onChange={e => setFilterStd(e.target.value)} className="inline-select">
                         <option value="all">All Standards</option>
                         {standards.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -130,36 +129,36 @@ export default function Resources() {
             </div>
 
             {loading ? <div className="loading-spinner" /> : fetchError ? (
-                <div className="empty-state" style={{ padding: 48 }}>
-                    <AlertCircle size={40} style={{ color: 'var(--danger)', marginBottom: 12 }} />
-                    <h3 style={{ marginBottom: 8 }}>{fetchError}</h3>
-                    <button className="btn-primary btn-small" onClick={loadAll} style={{ marginTop: 8 }}>
+                <div className="empty-state empty-state-padded">
+                    <AlertCircle size={40} className="text-danger-icon" />
+                    <h3 className="empty-state-title">{fetchError}</h3>
+                    <button className="btn-primary btn-small empty-state-action" onClick={loadAll}>
                         <RefreshCw size={14} /> Try Again
                     </button>
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="empty-state"><BookOpen /><h3>No resources found</h3></div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                <div className="resource-grid">
                     {filtered.map(r => {
                         const Icon = TYPE_ICONS[r.type] || BookOpen;
                         return (
-                            <div key={r.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                                    <div style={{ background: `var(--${TYPE_COLORS[r.type]||'navy'})`, color: 'white', padding: 10, borderRadius: 8, flexShrink: 0 }}>
+                            <div key={r.id} className="card resource-card">
+                                <div className="resource-card-header">
+                                    <div className={`resource-type-icon resource-type-${TYPE_COLORS[r.type]||'navy'}`}>
                                         <Icon size={20} />
                                     </div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: 4 }}>{r.title}</div>
-                                        <span className={`badge ${TYPE_COLORS[r.type]||'navy'}`} style={{ fontSize: '0.7rem' }}>{r.type}</span>
+                                    <div className="resource-card-info">
+                                        <div className="resource-card-title">{r.title}</div>
+                                        <span className={`badge ${TYPE_COLORS[r.type]||'navy'} badge-sm`}>{r.type}</span>
                                     </div>
                                 </div>
                                 {r.file_url && (
-                                    <a href={r.file_url} target="_blank" rel="noreferrer" className="btn-secondary btn-small" style={{ textAlign: 'center' }}>
+                                    <a href={r.file_url} target="_blank" rel="noreferrer" className="btn-secondary btn-small resource-download-btn">
                                         Download
                                     </a>
                                 )}
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                <div className="resource-meta">
                                     {r.subjects?.name} · {r.standards?.name} · {r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : ''}
                                 </div>
                             </div>
@@ -167,6 +166,104 @@ export default function Resources() {
                     })}
                 </div>
             )}
+
+            <style>{`
+                .card-spaced {
+                    margin-bottom: 24px;
+                }
+                .form-stack {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                }
+                .btn-group-right {
+                    display: flex;
+                    gap: 8px;
+                    justify-content: flex-end;
+                }
+                .filter-bar {
+                    display: flex;
+                    gap: 12px;
+                    margin-bottom: 20px;
+                    flex-wrap: wrap;
+                    align-items: center;
+                }
+                .filter-info-badge {
+                    background: rgba(33,167,208,0.1);
+                    color: var(--navy);
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                }
+                .inline-select {
+                    padding: 6px 12px;
+                    border-radius: 8px;
+                    border: 1px solid var(--border);
+                    background: var(--surface-raised);
+                }
+                .empty-state-padded {
+                    padding: 48px;
+                }
+                .text-danger-icon {
+                    color: var(--danger);
+                    margin-bottom: 12px;
+                }
+                .empty-state-title {
+                    margin-bottom: 8px;
+                }
+                .empty-state-action {
+                    margin-top: 8px;
+                }
+                .resource-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    gap: 16px;
+                }
+                .resource-card {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+                .resource-card-header {
+                    display: flex;
+                    gap: 12px;
+                    align-items: flex-start;
+                }
+                .resource-type-icon {
+                    color: white;
+                    padding: 10px;
+                    border-radius: 8px;
+                    flex-shrink: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .resource-type-navy { background: var(--navy); }
+                .resource-type-red { background: var(--danger, #EF4444); }
+                .resource-type-green { background: var(--success, #10B981); }
+                .resource-type-gold { background: var(--gold); }
+                .resource-type-blue { background: #3B82F6; }
+                .resource-card-info {
+                    flex: 1;
+                    min-width: 0;
+                }
+                .resource-card-title {
+                    font-weight: 600;
+                    font-size: 0.9rem;
+                    margin-bottom: 4px;
+                }
+                .badge-sm {
+                    font-size: 0.7rem;
+                }
+                .resource-download-btn {
+                    text-align: center;
+                }
+                .resource-meta {
+                    font-size: 0.75rem;
+                    color: var(--text-muted);
+                }
+            `}</style>
         </>
     );
 }

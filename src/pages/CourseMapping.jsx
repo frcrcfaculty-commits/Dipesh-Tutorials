@@ -53,10 +53,10 @@ export default function CourseMapping() {
 
     if (loading) return <div className="loading-spinner" />;
     if (fetchError) return (
-        <div className="empty-state" style={{ padding: 48 }}>
-            <AlertCircle size={40} style={{ color: 'var(--danger)', marginBottom: 12 }} />
-            <h3 style={{ marginBottom: 8 }}>{fetchError}</h3>
-            <button className="btn-primary btn-small" onClick={loadAll} style={{ marginTop: 8 }}>
+        <div className="empty-state empty-state-padded">
+            <AlertCircle size={40} className="text-danger-icon" />
+            <h3 className="empty-state-title">{fetchError}</h3>
+            <button className="btn-primary btn-small empty-state-action" onClick={loadAll}>
                 <RefreshCw size={14} /> Try Again
             </button>
         </div>
@@ -66,14 +66,12 @@ export default function CourseMapping() {
         <>
             <div className="page-header">
                 <h2>Course Mapping</h2>
-                <div style={{ display: 'flex', gap: 12 }}>
-                    <select value={selectedStd} onChange={e => setSelectedStd(e.target.value)}
-                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div className="btn-group">
+                    <select value={selectedStd} onChange={e => setSelectedStd(e.target.value)} className="inline-select">
                         <option value="all">All Standards</option>
                         {(standards||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
-                    <select value={selectedTest?.id||''} onChange={e => setSelectedTest(tests.find(t => t.id === e.target.value))}
-                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                    <select value={selectedTest?.id||''} onChange={e => setSelectedTest(tests.find(t => t.id === e.target.value))} className="inline-select">
                         {(tests||[]).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                 </div>
@@ -82,7 +80,7 @@ export default function CourseMapping() {
             {weakTopics.length === 0 ? (
                 <div className="empty-state"><Lightbulb /><h3>Great performance!</h3><p>No weak topics identified for this test.</p></div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                <div className="weak-topics-grid">
                     {Object.entries(subjectGroups).map(([subject, items]) => (
                         <div key={subject} className="card">
                             <div className="card-header">
@@ -91,10 +89,10 @@ export default function CourseMapping() {
                             </div>
                             <div className="card-body">
                                 {items.map((item, i) => (
-                                    <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div key={i} className="weak-topic-row">
+                                        <div className="weak-topic-info">
                                             <AlertTriangle size={14} color={item.pct < 30 ? 'var(--danger)' : 'var(--warning)'} />
-                                            <span style={{ fontSize: '0.85rem' }}>{item.marks}/{item.max}</span>
+                                            <span className="weak-topic-marks">{item.marks}/{item.max}</span>
                                         </div>
                                         <span className={`badge ${item.pct < 30 ? 'absent' : 'late'}`}>{item.pct}%</span>
                                     </div>
@@ -104,6 +102,55 @@ export default function CourseMapping() {
                     ))}
                 </div>
             )}
+
+            <style>{`
+                .btn-group {
+                    display: flex;
+                    gap: 12px;
+                }
+                .inline-select {
+                    padding: 6px 12px;
+                    border-radius: 8px;
+                    border: 1px solid var(--border);
+                    background: var(--surface-raised, #fff);
+                }
+                .empty-state-padded {
+                    padding: 48px;
+                }
+                .text-danger-icon {
+                    color: var(--danger);
+                    margin-bottom: 12px;
+                }
+                .empty-state-title {
+                    margin-bottom: 8px;
+                }
+                .empty-state-action {
+                    margin-top: 8px;
+                }
+                .weak-topics-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                    gap: 16px;
+                }
+                .weak-topic-row {
+                    padding: 8px 0;
+                    border-bottom: 1px solid var(--border);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .weak-topic-row:last-child {
+                    border-bottom: none;
+                }
+                .weak-topic-info {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .weak-topic-marks {
+                    font-size: 0.85rem;
+                }
+            `}</style>
         </>
     );
 }

@@ -108,8 +108,8 @@ export default function Layout({ children }) {
                     <div className="sidebar-brand-inner">
                         <div className="sidebar-logo">DT</div>
                         <div>
-                            <div style={{ fontWeight: 700, fontSize: '0.95rem', fontFamily: 'var(--font-heading)' }}>Dipesh Tutorials</div>
-                            <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'capitalize' }}>{user?.role}</div>
+                            <div className="sidebar-brand-title">Dipesh Tutorials</div>
+                            <div className="sidebar-brand-role">{user?.role}</div>
                         </div>
                     </div>
                     <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}><X size={18} /></button>
@@ -124,11 +124,11 @@ export default function Layout({ children }) {
                             className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
                         >
                             <item.icon size={18} />
-                            <span style={{ flex: 1 }}>{item.label}</span>
+                            <span className="nav-item-label">{item.label}</span>
                             {item.dynamicBadge && notifCount > 0 && (
                                 <span className="notif-badge">{notifCount}</span>
                             )}
-                            {isActive(item.path) && <ChevronRight size={14} style={{ opacity: 0.5 }} />}
+                            {isActive(item.path) && <ChevronRight size={14} className="nav-item-chevron" />}
                         </button>
                     ))}
                 </nav>
@@ -136,8 +136,8 @@ export default function Layout({ children }) {
                 {/* User info & logout */}
                 <div className="sidebar-user">
                     <div className="sidebar-user-info">
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{user?.name}</div>
-                        <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{user?.email}</div>
+                        <div className="sidebar-user-name">{user?.name}</div>
+                        <div className="sidebar-user-email">{user?.email}</div>
                     </div>
                     <button onClick={logout} className="sidebar-logout-btn">
                         <LogOut size={16} />
@@ -151,7 +151,7 @@ export default function Layout({ children }) {
                 {/* Mobile header */}
                 <div className="mobile-header">
                     <button onClick={() => setSidebarOpen(true)} className="mobile-hamburger"><Menu size={22} /></button>
-                    <span style={{ fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--navy)' }}>Dipesh Tutorials</span>
+                    <span className="mobile-header-title">Dipesh Tutorials</span>
                 </div>
 
                 {/* Page content */}
@@ -164,6 +164,38 @@ export default function Layout({ children }) {
                     {children}
                 </main>
             </div>
+
+            <style>{`
+                .sidebar-brand-title {
+                    font-weight: 700;
+                    font-size: 0.95rem;
+                    font-family: var(--font-heading);
+                }
+                .sidebar-brand-role {
+                    font-size: 0.7rem;
+                    opacity: 0.6;
+                    text-transform: capitalize;
+                }
+                .nav-item-label {
+                    flex: 1;
+                }
+                .nav-item-chevron {
+                    opacity: 0.5;
+                }
+                .sidebar-user-name {
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                }
+                .sidebar-user-email {
+                    font-size: 0.7rem;
+                    opacity: 0.6;
+                }
+                .mobile-header-title {
+                    font-weight: 700;
+                    font-family: var(--font-heading);
+                    color: var(--navy);
+                }
+            `}</style>
         </div>
     );
 }

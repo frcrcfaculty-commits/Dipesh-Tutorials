@@ -98,11 +98,11 @@ export default function Billing() {
                 <div className="card-header"><h3>Fee Collection ({filtered.length})</h3>
                     <button className="btn-secondary btn-small" onClick={handleExportPDF} aria-label="Export PDF"><Download size={14} /> PDF Report</button>
                 </div>
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
+                <div className="card-filter-bar">
                     <div className="select-wrapper"><select value={standardFilter} onChange={e => setStandardFilter(e.target.value)}><option value="All">All Standards</option>{standards.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}</select></div>
                 </div>
-                <div className="card-body" style={{ padding: 0 }}>
-                    <div style={{ overflowX: 'auto' }}>
+                <div className="card-body card-body-flush">
+                    <div className="table-scroll">
                         <table className="data-table">
                             <thead><tr>
                                 <th>Name</th>
@@ -116,16 +116,16 @@ export default function Billing() {
                             <tbody>
                                 {filtered.map(f => (
                                     <tr key={f.student_id}>
-                                        <td style={{ fontWeight: 600 }}>{f.student_name}</td>
+                                        <td className="td-bold">{f.student_name}</td>
                                         {!isMobile && <td>{f.standard_name}</td>}
                                         {!isMobile && <td>Rs.{parseFloat(f.total_fees || 0).toLocaleString('en-IN')}</td>}
-                                        {!isMobile && <td style={{ color: 'var(--success)' }}>Rs.{parseFloat(f.paid_fees || 0).toLocaleString('en-IN')}</td>}
-                                        <td style={{ color: f.balance > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>Rs.{parseFloat(f.balance || 0).toLocaleString('en-IN')}</td>
+                                        {!isMobile && <td className="text-success">Rs.{parseFloat(f.paid_fees || 0).toLocaleString('en-IN')}</td>}
+                                        <td className={`td-bold ${f.balance > 0 ? 'text-danger' : 'text-success'}`}>Rs.{parseFloat(f.balance || 0).toLocaleString('en-IN')}</td>
                                         <td><span className={`badge ${f.status || 'pending'}`}>{f.status || 'pending'}</span></td>
                                         <td><button className="btn-gold btn-small" onClick={() => openPay(f)} aria-label="Record payment"><Plus size={12} /> Record Payment</button></td>
                                     </tr>
                                 ))}
-                                {filtered.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No records found</td></tr>}
+                                {filtered.length === 0 && <tr><td colSpan={7} className="td-empty">No records found</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -136,9 +136,9 @@ export default function Billing() {
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header"><h3>Record Payment — {selectedStudent.student_name}</h3><button className="icon-btn" onClick={() => setShowModal(false)} aria-label="Close"><X size={18} /></button></div>
                         <form onSubmit={handlePay} className="modal-body">
-                            <div className="stat-card" style={{ marginBottom: 16 }}>
-                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 4 }}>Balance Due</div>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)' }}>Rs.{parseFloat(selectedStudent.balance || 0).toLocaleString('en-IN')}</div>
+                            <div className="balance-display">
+                                <div className="balance-label">Balance Due</div>
+                                <div className="balance-amount">Rs.{parseFloat(selectedStudent.balance || 0).toLocaleString('en-IN')}</div>
                             </div>
                             <div className="form-group"><label>Amount (Rs.) *</label><input type="number" required min="1" max={selectedStudent.balance || 999999} value={selectedStudent.payment_amount} onChange={e => setSelectedStudent(p => ({ ...p, payment_amount: e.target.value }))} placeholder="Enter amount" /></div>
                             <div className="modal-footer">
@@ -149,6 +149,49 @@ export default function Billing() {
                     </div>
                 </div>
             )}
+
+            <style>{`
+                .card-filter-bar {
+                    padding: 12px 20px;
+                    border-bottom: 1px solid var(--border);
+                }
+                .card-body-flush {
+                    padding: 0;
+                }
+                .table-scroll {
+                    overflow-x: auto;
+                }
+                .td-bold {
+                    font-weight: 600;
+                }
+                .text-success {
+                    color: var(--success);
+                }
+                .text-danger {
+                    color: var(--danger);
+                }
+                .td-empty {
+                    text-align: center;
+                    padding: 32px;
+                    color: var(--text-muted);
+                }
+                .balance-display {
+                    background: var(--surface-raised, #f8f9fa);
+                    border-radius: var(--radius-md, 10px);
+                    padding: 16px;
+                    margin-bottom: 16px;
+                }
+                .balance-label {
+                    font-size: 0.85rem;
+                    color: var(--text-muted);
+                    margin-bottom: 4px;
+                }
+                .balance-amount {
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    color: var(--danger);
+                }
+            `}</style>
         </>
     );
 }

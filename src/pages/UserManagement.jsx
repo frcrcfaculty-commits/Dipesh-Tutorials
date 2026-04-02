@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../App';
-import { getStandards } from '../lib/api';
-import { getProfiles, getStudents, updateStudent } from '../lib/api';
+import { getStandards, getProfiles, getStudents, updateStudent } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { Users, UserPlus, Shield, Search, X, Save, Key, Mail, CheckCircle, AlertCircle, Link2 } from 'lucide-react';
 import { showToast } from '../utils';

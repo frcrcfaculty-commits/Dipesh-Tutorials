@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -26,6 +26,7 @@ function AuthProvider({ children }) {
     });
     const [loading, setLoading] = useState(true);
     const fetchingRef = useRef(false);
+    const navigate = useNavigate(); // useNavigate must be called inside Router context
 
     async function fetchProfile(authUser) {
         if (fetchingRef.current) return;
@@ -74,12 +75,12 @@ function AuthProvider({ children }) {
                 if (!session && user) {
                     setUser(null);
                     localStorage.removeItem('dt_user');
-                    window.location.hash = '#/login';
+                    navigate('/login');
                 }
             } catch (_) {}
         }, 300000);
         return () => clearInterval(interval);
-    }, [user]);
+    }, [user, navigate]);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -100,7 +101,7 @@ function AuthProvider({ children }) {
                     setUser(null);
                     localStorage.removeItem('dt_user');
                     setLoading(false);
-                    window.location.hash = '#/login';
+                    navigate('/login');
                 }
                 if (event === 'TOKEN_REFRESHED' && session?.user) {
                     console.log('Session refreshed');
@@ -109,7 +110,7 @@ function AuthProvider({ children }) {
         );
 
         return () => subscription.unsubscribe();
-    }, []);
+    }, [navigate]);
 
     const login = async (email, password) => {
         try {
@@ -176,10 +177,10 @@ function AppRoutes() {
 
 export default function App() {
     return (
-        <HashRouter>
+        <BrowserRouter>
             <AuthProvider>
                 <AppRoutes />
             </AuthProvider>
-        </HashRouter>
+        </BrowserRouter>
     );
 }

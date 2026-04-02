@@ -36,10 +36,13 @@ export default function Analytics() {
         if (!selectedTest) return;
         const studentId = (user.role === 'student' || user.role === 'parent')
             ? user.students?.[0]?.id : null;
-        getTestResults({ testId: selectedTest.id, standardId: selectedStd !== 'all' ? selectedStd : undefined })
+        getTestResults({
+            testId: selectedTest.id,
+            standardId: selectedStd !== 'all' ? Number(selectedStd) : undefined,
+            studentId: studentId || undefined,
+        })
             .then(r => {
-                const data = r || [];
-                setResults(studentId ? data.filter(d => d.student_id === studentId) : data);
+                setResults(r||[]);
             }).catch(() => setResults([]));
     }, [selectedTest, selectedStd, user]);
 

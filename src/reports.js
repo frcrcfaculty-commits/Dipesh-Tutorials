@@ -135,8 +135,8 @@ export function generateFeeReportPDF(fees, standard = 'All') {
 
     doc.setTextColor(0);
     doc.setFontSize(10);
-    const total = fees.reduce((sum, f) => sum + (f.totalFees || 0), 0);
-    const paid = fees.reduce((sum, f) => sum + (f.paidFees || 0), 0);
+    const total = fees.reduce((sum, f) => sum + (f.total_fees || 0), 0);
+    const paid = fees.reduce((sum, f) => sum + (f.paid_fees || 0), 0);
     const pending = total - paid;
     doc.text(`Total Demand: ₹${total.toLocaleString('en-IN')} | Collected: ₹${paid.toLocaleString('en-IN')} | Pending: ₹${pending.toLocaleString('en-IN')}`, 14, 44);
 
@@ -144,12 +144,12 @@ export function generateFeeReportPDF(fees, standard = 'All') {
         startY: 50,
         head: [['Student', 'Standard', 'Total Fees', 'Paid', 'Pending', 'Status']],
         body: fees.map(f => [
-            f.name || f.studentName || '—',
-            f.standard || '—',
-            `₹${(f.totalFees || 0).toLocaleString('en-IN')}`,
-            `₹${(f.paidFees || 0).toLocaleString('en-IN')}`,
-            `₹${((f.totalFees || 0) - (f.paidFees || 0)).toLocaleString('en-IN')}`,
-            (f.feeStatus || 'pending').toUpperCase(),
+            f.student_name || '—',
+            f.standard_name || '—',
+            `₹${(f.total_fees || 0).toLocaleString('en-IN')}`,
+            `₹${(f.paid_fees || 0).toLocaleString('en-IN')}`,
+            `₹${(f.balance || 0).toLocaleString('en-IN')}`,
+            (f.status || 'pending').toUpperCase(),
         ]),
         styles: { fontSize: 8 },
         headStyles: { fillColor: [182, 146, 46], textColor: 255 },

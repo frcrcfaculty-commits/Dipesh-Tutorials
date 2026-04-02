@@ -33,7 +33,10 @@ export default function CourseMapping() {
 
     useEffect(() => {
         if (!selectedTest) return;
-        getTestResults({ testId: selectedTest.id, standardId: selectedStd !== 'all' ? selectedStd : undefined })
+        getTestResults({
+            testId: selectedTest.id,
+            standardId: selectedStd !== 'all' ? Number(selectedStd) : undefined,
+        })
             .then(r => setResults(r||[])).catch(() => setResults([]));
     }, [selectedTest, selectedStd]);
 

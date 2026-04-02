@@ -26,7 +26,7 @@ export default function Billing() {
         setLoading(true);
         try {
             const [feeData, stds] = await Promise.all([
-                getFeeSummary(),
+                getFeeSummary(standardFilter !== 'All' ? { standardName: standardFilter } : {}),
                 getStandards(),
             ]);
             setFees(feeData || []);
@@ -40,6 +40,11 @@ export default function Billing() {
 
     useEffect(() => { load(); }, []);
 
+    useEffect(() => {
+        // Re-fetch fees when standard filter changes
+        load();
+    }, [standardFilter]);
+
     const filtered = standardFilter === 'All' ? fees : fees.filter(f => f.standard_name === standardFilter);
     const totalDemand = filtered.reduce((s, f) => s + parseFloat(f.total_fees || 0), 0);
     const totalCollected = filtered.reduce((s, f) => s + parseFloat(f.paid_fees || 0), 0);
@@ -52,13 +57,20 @@ export default function Billing() {
 
     const handlePay = async (e) => {
         e.preventDefault();
-        if (!selectedStudent.payment_amount) return;
+        const amount = parseFloat(selectedStudent.payment_amount);
+        if (!amount || amount <= 0) return;
+        if (amount > selectedStudent.balance) {
+            showToast(`Amount cannot exceed balance of ₹${parseFloat(selectedStudent.balance || 0).toLocaleString('en-IN')}`, 'error');
+            return;
+        }
         setSaving(true);
         try {
-            await recordPayment(selectedStudent.student_id, {
-                amount: parseFloat(selectedStudent.payment_amount),
+            await recordPayment({
+                student_id: selectedStudent.student_id,
+                amount,
                 payment_date: new Date().toISOString().split('T')[0],
                 payment_method: 'cash',
+                recorded_by: user.id,
             });
             showToast('Payment recorded!');
             setShowModal(false);

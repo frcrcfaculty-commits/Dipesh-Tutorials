@@ -6,6 +6,7 @@ import {
     LayoutDashboard, Users, CalendarCheck, BookOpen, IndianRupee, Bell, BarChart3,
     GraduationCap, Settings, LogOut, Menu, X, ChevronRight, Map
 } from 'lucide-react';
+import { showToast, withTimeout, playNotificationTone } from '../utils';
 
 export default function Layout({ children }) {
     const { user, logout } = useAuth();
@@ -65,7 +66,7 @@ export default function Layout({ children }) {
                     if (prevNotifRef.current !== null && newCount > prevNotifRef.current) {
                         const soundEnabled = localStorage.getItem('dt_notif_sound') !== 'false';
                         if (soundEnabled) {
-                            import('../utils').then(m => m.playNotificationTone());
+                            playNotificationTone();
                         }
                     }
                     

@@ -296,10 +296,10 @@ export async function upsertTestResults(results) {
 
 // ─── FEES ──────────────────────────────────────────────────
 export async function getFeeSummary(filters = {}) {
-    // Use the view
+    // Use the view — standardName filters by standard_name (e.g. "11th Science")
     let query = supabase.from('student_fee_summary').select('*');
-    if (filters.standardId) {
-        query = query.eq('standard_name', filters.standardId);
+    if (filters.standardName) {
+        query = query.eq('standard_name', filters.standardName);
     }
     if (filters.studentIds && filters.studentIds.length > 0) {
         query = query.in('student_id', filters.studentIds);
@@ -458,10 +458,11 @@ export async function uploadFile(bucket, path, file) {
 export async function getDashboardStats() {
     const today = new Date().toISOString().split('T')[0];
 
-    const [studentsRes, todayAttRes, notifRes] = await Promise.all([
+    const [studentsRes, todayAttRes, notifRes, feesRes] = await Promise.all([
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('attendance').select('status').eq('date', today),
         supabase.from('notifications').select('id', { count: 'exact', head: true }),
+        supabase.from('student_fee_summary').select('total_fees, paid_fees'),
     ]);
 
     const totalStudents = studentsRes.count || 0;
@@ -469,10 +470,16 @@ export async function getDashboardStats() {
     const presentToday = todayAttendance.filter(a => a.status === 'present' || a.status === 'late').length;
     const totalToday = todayAttendance.length || 1;
 
+    const allFees = feesRes.data || [];
+    const totalCollected = allFees.reduce((s, f) => s + parseFloat(f.paid_fees || 0), 0);
+    const totalDemand = allFees.reduce((s, f) => s + parseFloat(f.total_fees || 0), 0);
+
     return {
         totalStudents,
         attendancePercent: Math.round((presentToday / totalToday) * 100),
         totalNotifications: notifRes.count || 0,
+        totalCollected,
+        pendingFees: totalDemand - totalCollected,
     };
 }
 

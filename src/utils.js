@@ -48,3 +48,22 @@ export function withTimeout(promise, ms = 10000) {
     );
     return Promise.race([promise, timeout]);
 }
+
+// Web Audio API notification tone (no external dependency)
+export function playNotificationTone() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        oscillator.frequency.setValueAtTime(880, ctx.currentTime); // A5
+        oscillator.frequency.setValueAtTime(1108, ctx.currentTime + 0.1); // C#6
+        gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.3);
+    } catch (e) {
+        // Silently fail if Web Audio not available
+    }
+}

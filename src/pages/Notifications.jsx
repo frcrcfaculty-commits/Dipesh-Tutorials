@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { getNotifications, createNotification, markNotificationRead, getStandards } from '../lib/api';
 import { Bell, Send, CheckCircle, BellRing, BellOff } from 'lucide-react';
-import { showToast } from '../utils';
+import { showToast, playNotificationTone } from '../utils';
 
 export default function Notifications() {
     const { user } = useAuth();
@@ -19,7 +19,7 @@ export default function Notifications() {
         setSoundEnabled(newVal);
         localStorage.setItem('dt_notif_sound', newVal);
         if (newVal) {
-            import('../utils').then(m => m.playNotificationTone()); // preview sound
+            playNotificationTone(); // preview sound
         }
     };
 

@@ -119,6 +119,13 @@ create table fee_payments (
 );
 
 create or replace view student_fee_summary as
+with academic_year as (
+    select case
+        when extract(month from current_date) >= 4
+        then to_char(current_date, 'YYYY') || '-' || to_char(current_date + interval '1 year', 'YY')
+        else to_char(current_date - interval '1 year', 'YYYY') || '-' || to_char(current_date, 'YY')
+    end as year
+)
 select
     s.id as student_id,
     s.name as student_name,
@@ -133,10 +140,11 @@ select
     end as status
 from students s
 join standards st on s.standard_id = st.id
-left join fee_structures fs on s.standard_id = fs.standard_id and fs.academic_year = '2025-26'
+cross join academic_year ay
+left join fee_structures fs on s.standard_id = fs.standard_id and fs.academic_year = ay.year
 left join fee_payments fp on s.id = fp.student_id
 where s.is_active = true
-group by s.id, s.name, st.name, fs.total_amount;
+group by s.id, s.name, st.name, fs.total_amount, ay.year;
 
 -- ─── ATTENDANCE ────────────────────────────────────────────
 create table attendance (

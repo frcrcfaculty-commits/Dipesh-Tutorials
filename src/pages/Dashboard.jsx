@@ -52,7 +52,8 @@ function ParentDashboard({ user }) {
                 setTestAvg(avg);
             }
             // Find fee for linked student
-            const studentFee = (fees||[]).find(f => f.student_id === user.profile.student_id);
+            const linkedStudentId = user.students?.[0]?.id;
+            const studentFee = linkedStudentId ? (fees||[]).find(f => f.student_id === linkedStudentId) : null;
             setFeeBalance(studentFee ? studentFee.balance : 0);
             setNotifications(notifs||[]);
             setLoading(false);

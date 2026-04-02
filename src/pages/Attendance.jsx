@@ -169,10 +169,15 @@ function AdminAttendance() {
     const handleMarkAll = async (status) => {
         setSaving(true);
         try {
-            for (const s of filteredStudents) {
-                await markAttendance(s.id, selectedDate, status);
-                setAttendanceMap(prev => ({ ...prev, [s.id]: status }));
-            }
+            // Parallelize all upserts — single batch network call instead of N sequential calls
+            await Promise.all(filteredStudents.map(s =>
+                markAttendance(s.id, selectedDate, status)
+            ));
+            setAttendanceMap(prev => {
+                const next = { ...prev };
+                filteredStudents.forEach(s => { next[s.id] = status; });
+                return next;
+            });
             showToast(`All marked as ${status}`);
         } catch (err) {
             showToast(err.message, 'error');

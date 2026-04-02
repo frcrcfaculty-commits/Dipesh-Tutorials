@@ -188,9 +188,18 @@ export async function getStudentAttendance(studentId, days = 28) {
     return data;
 }
 
-export async function markAttendance(records) {
-    // records: [{ student_id, date, status, arrival_time, method, marked_by }]
-    // Make marked_by optional to prevent FK failures
+export async function markAttendance(recordsOrStudentId, dateOrUndefined, statusOrUndefined) {
+    // Support both calling conventions:
+    // - markAttendance([{ student_id, date, status, ... }]) — array of records
+    // - markAttendance(studentId, date, status) — single student (called from Attendance.jsx)
+    let records;
+    if (Array.isArray(recordsOrStudentId)) {
+        records = recordsOrStudentId;
+    } else {
+        // Called as markAttendance(studentId, date, status)
+        records = [{ student_id: recordsOrStudentId, date: dateOrUndefined, status: statusOrUndefined }];
+    }
+
     const cleanRecords = records.map(r => ({
         ...r,
         marked_by: r.marked_by || null,

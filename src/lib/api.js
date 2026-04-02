@@ -397,14 +397,9 @@ export async function getNotifications(userRole, limit = 50) {
 }
 
 export async function createNotification(notification) {
-    // Make sent_by optional
-    const cleanNotif = {
-        ...notification,
-        sent_by: notification.sent_by || null,
-    };
     const { data, error } = await supabase
         .from('notifications')
-        .insert(cleanNotif)
+        .insert(notification)
         .select()
         .single();
     if (error) {

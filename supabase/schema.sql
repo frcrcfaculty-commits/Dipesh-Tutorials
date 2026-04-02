@@ -299,18 +299,27 @@ create policy "Read own results" on test_results
         student_id in (select id from students where profile_id = auth.uid() or parent_profile_id = auth.uid())
     );
 
--- Notifications: admins create, target roles read
-create policy "Admins manage notifications" on notifications
-    for all using (
+-- Notifications: admins create (INSERT), all targeted roles read (SELECT), admins update/delete
+-- sent_by auto-defaults to auth.uid() so admins don't need to pass it from the app
+create policy "Admins insert notifications" on notifications
+    for insert with check (
         exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin'))
     );
 create policy "Read targeted notifications" on notifications
     for select using (
-        (select role from profiles where id = auth.uid()) = any(target_roles)
+        exists (select 1 from profiles where id = auth.uid() and role = any(target_roles))
+    );
+create policy "Admins update notifications" on notifications
+    for update using (
+        exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin'))
+    );
+create policy "Admins delete notifications" on notifications
+    for delete using (
+        exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin'))
     );
 
--- Notification Reads: own reads
-create policy "Manage own reads" on notification_reads
+-- Notification Reads: users manage only their own read status
+create policy "Manage own notification reads" on notification_reads
     for all using (profile_id = auth.uid());
 
 -- Fee Payments: admins manage, parents/students read own

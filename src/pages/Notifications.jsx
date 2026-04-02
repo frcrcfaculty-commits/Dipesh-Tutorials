@@ -55,7 +55,7 @@ export default function Notifications() {
         if (!form.message.trim()) { showToast("Please enter a message", "error"); return; }
         setSending(true);
         try {
-            await createNotification({ ...form, sent_by: user.id });
+            await createNotification(form);
             showToast('Notification sent!');
             setShowForm(false);
             setForm({ title: '', message: '', type: 'general', target_roles: ['student', 'parent'], target_standard_id: null });

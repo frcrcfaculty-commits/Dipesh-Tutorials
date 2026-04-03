@@ -1545,13 +1545,6 @@ img {
 
     .login-card {
         padding: var(--space-xl) var(--space-lg);
-        margin-bottom: env(keyboard-inset-height, 0px);
-    }
-
-    /* Prevent grey overlay when keyboard is open */
-    .login-page input:focus {
-        position: relative;
-        z-index: 10;
     }
 }
 

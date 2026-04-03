@@ -23,7 +23,7 @@ const config: CapacitorConfig = {
             backgroundColor: '#0A2351',
         },
         Keyboard: {
-            resize: 'body' as any,
+            resize: 'Native' as any,
             resizeOnFullScreen: true,
         },
     },

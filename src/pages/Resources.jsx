@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
-import { getResources, uploadResource, getStandards, getSubjects } from '../lib/api';
+import { getResources, uploadResource, uploadFile, getStandards, getSubjects } from '../lib/api';
 import { BookOpen, Upload, FileText, Video, FileSpreadsheet, Presentation, X, RefreshCw, AlertCircle } from 'lucide-react';
 import { showToast } from '../utils';
 
@@ -46,12 +46,30 @@ export default function Resources() {
         if (!form.title || !form.standard_id) { showToast('Fill all required fields', 'error'); return; }
         setUploading(true);
         try {
-            await uploadResource({ ...form, uploaded_by: user.id });
+            let file_url = null;
+            if (form.file) {
+                const path = `${Date.now()}_${form.file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
+                file_url = await uploadFile('resources', path, form.file);
+            }
+            
+            const payload = {
+                title: form.title,
+                type: form.type,
+                standard_id: form.standard_id,
+                subject_id: form.subject_id || null,
+                file_url: file_url,
+                uploaded_by: user.id
+            };
+            
+            await uploadResource(payload);
             showToast('Resource uploaded!');
             setShowUpload(false);
             setForm({ title: '', type: 'PDF Notes', standard_id: '', subject_id: '', file: null });
             loadAll();
-        } catch(err) { showToast('Upload failed', 'error'); }
+        } catch(err) { 
+            console.error(err);
+            showToast(err.message || 'Upload failed', 'error'); 
+        }
         setUploading(false);
     }
 

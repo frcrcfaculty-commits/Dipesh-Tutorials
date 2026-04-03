@@ -103,11 +103,19 @@ export default function Students() {
         e.preventDefault();
         setSaving(true);
         try {
+            const payload = { ...form };
+            // Sanitize optional fields so empty strings don't break Postgres types
+            if (!payload.roll_no) payload.roll_no = null;
+            if (!payload.date_of_birth) payload.date_of_birth = null;
+            if (!payload.enrollment_date) payload.enrollment_date = null;
+            if (!payload.parent_email) payload.parent_email = null;
+            if (!payload.address) payload.address = null;
+
             if (editingId) {
-                await updateStudent(editingId, form);
+                await updateStudent(editingId, payload);
                 showToast('Student updated!');
             } else {
-                await addStudent(form);
+                await addStudent(payload);
                 showToast('Student added!');
             }
             setShowModal(false);

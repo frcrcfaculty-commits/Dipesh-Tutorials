@@ -18,6 +18,11 @@ import WalkIn from './pages/WalkIn';
 import WalkInV2 from './pages/WalkInV2';
 import StudentsV2 from './pages/StudentsV2';
 import ErrorBoundary from './components/ErrorBoundary';
+import DailyReport from './pages/DailyReport.v2';
+import FeeHumanity from './pages/FeeHumanity.v2';
+import MoodCheckin from './pages/MoodCheckin.v2';
+import Milestones from './pages/Milestones.v2';
+import ParentMessaging from './pages/ParentMessaging.v2';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -179,6 +184,11 @@ function AppRoutes() {
             <Route path="/v2" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><DashboardV2 /></Layout></ProtectedRoute>} />
             <Route path="/students-v2" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><StudentsV2 /></Layout></ProtectedRoute>} />
             <Route path="/walk-in-v2" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><WalkInV2 /></Layout></ProtectedRoute>} />
+            <Route path="/daily-report" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><DailyReport /></Layout></ProtectedRoute>} />
+            <Route path="/fee-humanity" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><FeeHumanity /></Layout></ProtectedRoute>} />
+            <Route path="/mood-checkin" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><MoodCheckin /></Layout></ProtectedRoute>} />
+            <Route path="/milestones" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><Milestones /></Layout></ProtectedRoute>} />
+            <Route path="/parent-messaging" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><ParentMessaging /></Layout></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

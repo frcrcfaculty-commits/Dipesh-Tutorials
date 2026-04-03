@@ -480,3 +480,56 @@ create policy "Read own notes" on walk_in_notes
 
 create index idx_walk_in_visits_student on walk_in_visits(student_id);
 create index idx_walk_in_notes_visit on walk_in_notes(visit_id);
+
+-- ─── PARENT REPLIES (Step 2) ──────────────────────────────
+create table notification_replies (
+    id uuid primary key default uuid_generate_v4(),
+    notification_id uuid references notifications(id) on delete cascade,
+    profile_id uuid references profiles(id),
+    reply_text text not null,
+    created_at timestamptz default now(),
+    unique(notification_id, profile_id)
+);
+alter table notification_replies enable row level security;
+create policy "Parents can reply to own notifications" on notification_replies
+    for insert with check (profile_id = auth.uid());
+create policy "Admins can read all replies" on notification_replies
+    for select using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin')));
+create policy "Parents can read own replies" on notification_replies
+    for select using (profile_id = auth.uid());
+
+-- ─── MILESTONES (Step 5) ─────────────────────────────────
+create table milestones (
+    id uuid primary key default uuid_generate_v4(),
+    student_id uuid references students(id) on delete cascade,
+    profile_id uuid references profiles(id),
+    type text not null, -- 'attendance_streak_30', 'first_a_plus', 'first_payment', etc.
+    title text not null,
+    description text,
+    acknowledged boolean default false,
+    created_at timestamptz default now()
+);
+alter table milestones enable row level security;
+create policy "Students/parents see own milestones" on milestones
+    for select using (
+        profile_id = auth.uid() or
+        exists (select 1 from students where id = student_id and (profile_id = auth.uid() or parent_profile_id = auth.uid()))
+    );
+create policy "Admins manage milestones" on milestones
+    for all using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin')));
+
+-- ─── MOOD CHECK-INS (Step 4) ─────────────────────────────
+create table mood_checkins (
+    id uuid primary key default uuid_generate_v4(),
+    student_id uuid references students(id) on delete cascade,
+    mood text not null check (mood in ('great', 'good', 'okay', 'struggling')),
+    note text,
+    created_at timestamptz default now()
+);
+alter table mood_checkins enable row level security;
+create policy "Students submit own mood" on mood_checkins
+    for insert with check (student_id in (select id from students where profile_id = auth.uid()));
+create policy "Students read own mood history" on mood_checkins
+    for select using (student_id in (select id from students where profile_id = auth.uid()));
+create policy "Admins read all mood data" on mood_checkins
+    for select using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin')));

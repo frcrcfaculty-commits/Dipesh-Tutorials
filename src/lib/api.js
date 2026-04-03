@@ -664,3 +664,134 @@ export async function getWalkInNotes(visitId) {
 }
 
 
+
+// ─── DAILY REPORT CARDS ───────────────────────────────────
+export async function getDailyReportCard(studentId, date) {
+    const [att, fees, notes, tests] = await Promise.all([
+        supabase.from('attendance').select('*').eq('student_id', studentId).eq('date', date).single(),
+        supabase.from('fee_payments').select('*, fee_structures(*)').eq('student_id', studentId).order('payment_date', { ascending: false }).limit(1),
+        supabase.from('walk_in_notes').select('*, walk_in_visits(student_id, visited_at), profiles(name)').eq('walk_in_visits.student_id', studentId).gte('walk_in_visits.visited_at', date + 'T00:00:00').lte('walk_in_visits.visited_at', date + 'T23:59:59'),
+        supabase.from('test_results').select('*, tests(name, test_date), subjects(name)').eq('student_id', studentId).gte('tests.test_date', date + 'T00:00:00').lte('tests.test_date', date + 'T23:59:59'),
+    ]);
+    return {
+        attendance: att.data,
+        latestPayment: fees.data,
+        visitNotes: notes.data || [],
+        dailyTests: tests.data || [],
+    };
+}
+
+export async function getRecentDailyReports(studentId, days = 30) {
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - days);
+    const { data, error } = await supabase
+        .from('attendance').select('date').eq('student_id', studentId)
+        .gte('date', fromDate.toISOString().split('T')[0]).order('date', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
+// ─── PARENT REPLIES ────────────────────────────────────────
+export async function addParentReply(notificationId, profileId, replyText) {
+    const { data, error } = await supabase
+        .from('notification_replies')
+        .insert({ notification_id: notificationId, profile_id: profileId, reply_text: replyText })
+        .select('*, profiles(name)').single();
+    if (error) throw error;
+    return data;
+}
+
+export async function getParentReplies(notificationId) {
+    const { data, error } = await supabase
+        .from('notification_replies')
+        .select('*, profiles(name, avatar_url)')
+        .eq('notification_id', notificationId)
+        .order('created_at');
+    if (error) throw error;
+    return data || [];
+}
+
+// ─── MILESTONES ─────────────────────────────────────────────
+export async function checkAndCreateMilestones(studentId, profileId) {
+    // Check various milestone conditions
+    const [attRecords, testResults, paymentRecords] = await Promise.all([
+        supabase.from('attendance').select('status').eq('student_id', studentId).order('date', { ascending: false }).limit(60),
+        supabase.from('test_results').select('*, subjects(name)').eq('student_id', studentId).order('created_at'),
+        supabase.from('fee_payments').select('*').eq('student_id', studentId).order('payment_date'),
+    ]);
+
+    const att = attRecords.data || [];
+    const tests = testResults.data || [];
+    const payments = paymentRecords.data || [];
+    const newMilestones = [];
+
+    // 30-day attendance streak
+    const last30 = att.slice(0, 30);
+    if (last30.length >= 30 && last30.every(a => a.status === 'present' || a.status === 'late')) {
+        const { data: existing } = await supabase.from('milestones').select('id').eq('student_id', studentId).eq('type', 'attendance_streak_30').single();
+        if (!existing) {
+            const { data: m } = await supabase.from('milestones').insert({ student_id: studentId, profile_id: profileId, type: 'attendance_streak_30', title: '30-Day Streak!', description: 'Perfect attendance for 30 consecutive days' }).select().single();
+            newMilestones.push(m);
+        }
+    }
+
+    // First A+ grade
+    const aPlus = tests.find(t => t.grade === 'A+');
+    if (aPlus) {
+        const { data: existing } = await supabase.from('milestones').select('id').eq('student_id', studentId).eq('type', 'first_a_plus').single();
+        if (!existing) {
+            const { data: m } = await supabase.from('milestones').insert({ student_id: studentId, profile_id: profileId, type: 'first_a_plus', title: 'First A+!', description: `Scored A+ in ${aPlus.subjects?.name || 'a test'}` }).select().single();
+            newMilestones.push(m);
+        }
+    }
+
+    // First fee payment
+    if (payments.length === 1) {
+        const { data: existing } = await supabase.from('milestones').select('id').eq('student_id', studentId).eq('type', 'first_payment').single();
+        if (!existing) {
+            const { data: m } = await supabase.from('milestones').insert({ student_id: studentId, profile_id: profileId, type: 'first_payment', title: 'First Payment Recorded', description: 'First fee payment successfully recorded' }).select().single();
+            newMilestones.push(m);
+        }
+    }
+
+    return newMilestones;
+}
+
+export async function getStudentMilestones(studentId) {
+    const { data, error } = await supabase
+        .from('milestones').select('*, profiles(name)')
+        .eq('student_id', studentId).order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
+export async function acknowledgeMilestone(milestoneId) {
+    const { error } = await supabase.from('milestones').update({ acknowledged: true }).eq('id', milestoneId);
+    if (error) throw error;
+}
+
+// ─── MOOD CHECK-IN ─────────────────────────────────────────
+export async function recordMood(studentId, mood, note = '') {
+    const { data, error } = await supabase
+        .from('mood_checkins').insert({ student_id: studentId, mood, note }).select().single();
+    if (error) throw error;
+    return data;
+}
+
+export async function getMoodHistory(studentId, days = 30) {
+    const fromDate = new Date(); fromDate.setDate(fromDate.getDate() - days);
+    const { data, error } = await supabase
+        .from('mood_checkins').select('*')
+        .eq('student_id', studentId)
+        .gte('created_at', fromDate.toISOString()).order('created_at');
+    if (error) throw error;
+    return data || [];
+}
+
+export async function getClassMoodByDate(date, standardId = null) {
+    let query = supabase.from('mood_checkins').select('*, students(name, standard_id, standards(name))').gte('created_at', date + 'T00:00:00').lte('created_at', date + 'T23:59:59');
+    if (standardId) query = query.eq('students.standard_id', standardId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+}

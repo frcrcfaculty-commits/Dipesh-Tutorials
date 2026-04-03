@@ -223,3 +223,66 @@ export function generateTestResultReportPDF(results, standard = 'All') {
 
     doc.save(`test-results-report-${new Date().toISOString().split('T')[0]}.pdf`);
 }
+
+
+// ─── PROGRESS REPORT ────────────────────────────────────────
+function rHeader(doc, title, subtitle) {
+  doc.setFillColor(10,35,81); doc.rect(0,0,210,32,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(18); doc.setFont('helvetica','bold');
+  doc.text('DIPESH TUTORIALS', 105, 13, {align:'center'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('Excellence in Education | www.dipeshtutorials.com', 105, 20, {align:'center'});
+  doc.text('Generated: '+new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}), 105, 27, {align:'center'});
+  doc.setTextColor(10,35,81); doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text(title, 105, 42, {align:'center'});
+  if(subtitle){ doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.text(subtitle, 105, 49, {align:'center'}); }
+}
+function rFooter(doc){
+  const pc = doc.getNumberOfPages();
+  for(let i=1;i<=pc;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(150);
+    doc.text('Page '+i+' of '+pc, 105, 287, {align:'center'});
+    doc.text('Dipesh Tutorials | Confidential', 105, 281, {align:'center'}); }
+}
+
+export function generateProgressReport(data) {
+  const { student, results, attendance, feeSummary } = data;
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  rHeader(doc, 'STUDENT PROGRESS REPORT', student.name+' | '+(student.standard||'')+' | Roll: '+(student.roll_no||''));
+  // Info
+  doc.setFillColor(245,245,245); doc.rect(10,55,190,20,'F');
+  doc.setFontSize(9); doc.setTextColor(80);
+  const info = [['Student',student.name,'Parent',student.parent_name||'-'],['Standard',student.standard||'-','Phone',student.parent_phone||'-'],['DOB',student.date_of_birth||'-','Email',student.parent_email||'-']];
+  let y=59;
+  info.forEach(function(r){ doc.setFont('helvetica','bold');doc.text(r[0]+':',14,y);doc.setFont('helvetica','normal');doc.text(String(r[1]||'-'),35,y);doc.setFont('helvetica','bold');doc.text(r[2]+':',110,y);doc.setFont('helvetica','normal');doc.text(String(r[3]||'-'),132,y);y+=6; });
+  // Attendance
+  doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(10,35,81);doc.text('ATTENDANCE SUMMARY', 14, 85);
+  const pres = attendance.filter(function(a){return a.status==='present'||a.status==='late';}).length;
+  const attPct = attendance.length>0?Math.round(pres/attendance.length*100):0;
+  doc.autoTable({head:[['Total','Present','Absent','Late','Attendance %']], body:[[attendance.length,pres,attendance.filter(function(a){return a.status==='absent';}).length,attendance.filter(function(a){return a.status==='late';}).length,attPct+'%']],
+    startY:88, theme:'grid', headStyles:{fillColor:[10,35,81]},footStyles:{fillColor:[10,35,81]}, margin:{left:14,right:14}});
+  // Results
+  if(results&&results.length>0){
+    const lastY = doc.lastAutoTable?doc.lastAutoTable.finalY+8:120;
+    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(10,35,81);doc.text('TEST RESULTS',14,lastY);
+    var rBody = results.map(function(r){var pct=r.max_marks>0?Math.round(r.marks_obtained/r.max_marks*100):0;return [r.test_name||'-',r.subject_name||'-',r.marks_obtained,r.max_marks,pct+'%',r.grade||'-'];});
+    var avg = Math.round(rBody.reduce(function(s,r){return s+parseInt(r[4]);},0)/rBody.length);
+    doc.autoTable({head:[['Test','Subject','Marks','Max','%','Grade']],body:rBody.concat([['AVERAGE','','','',avg+'%','']]),
+      startY:lastY+4,theme:'striped',headStyles:{fillColor:[10,35,81]},footStyles:{fillColor:[182,146,46],textColor:255},
+      columnStyles:{4:{halign:'center'},5:{halign:'center'}},margin:{left:14,right:14}});
+  }
+  // Fee
+  if(feeSummary){
+    const feeY = doc.lastAutoTable?doc.lastAutoTable.finalY+8:175;
+    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(10,35,81);doc.text('FEE STATUS',14,feeY);
+    const fColor = feeSummary.status==='paid'?[16,185,129]:[245,158,11];
+    doc.autoTable({head:[['Total Fees','Amount Paid','Balance','Status']],body:[[feeSummary.total_fees||0,feeSummary.paid_fees||0,feeSummary.balance||0,feeSummary.status||'pending']],
+      startY:feeY+4,theme:'grid',headStyles:{fillColor:[10,35,81]},footStyles:{fillColor:fColor},margin:{left:14,right:14}});
+  }
+  // Signatures
+  const sigY = doc.lastAutoTable?doc.lastAutoTable.finalY+14:245;
+  doc.setDrawColor(10,35,81);doc.setLineWidth(0.5);doc.line(14,sigY,75,sigY);doc.line(130,sigY,196,sigY);
+  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(10,35,81);
+  doc.text('Class Teacher',44,sigY+5,{align:'center'});doc.text('Principal / Director',163,sigY+5,{align:'center'});
+  rFooter(doc);
+  doc.save('ProgressReport_'+(student.name||'Student').replace(/\s/g,'_')+'.pdf');
+}

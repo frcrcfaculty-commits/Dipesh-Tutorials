@@ -533,3 +533,41 @@ create policy "Students read own mood history" on mood_checkins
     for select using (student_id in (select id from students where profile_id = auth.uid()));
 create policy "Admins read all mood data" on mood_checkins
     for select using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin')));
+
+-- ─── HOMEWORK TRACKER ─────────────────────────────────────
+create table if not exists homework (
+    id uuid primary key default gen_random_uuid(),
+    title text not null,
+    description text,
+    standard_id int references standards(id) on delete cascade,
+    subject_id int references subjects(id) on delete set null,
+    due_date date not null,
+    assigned_by uuid references profiles(id),
+    created_at timestamptz default now()
+);
+
+create table if not exists homework_submissions (
+    id uuid primary key default gen_random_uuid(),
+    homework_id uuid references homework(id) on delete cascade,
+    student_id uuid references students(id) on delete cascade,
+    submitted_at timestamptz default now(),
+    notes text,
+    unique(homework_id, student_id)
+);
+
+alter table homework enable row level security;
+alter table homework_submissions enable row level security;
+
+create policy "Admins manage homework" on homework
+    for all using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin')));
+
+create policy "Students read homework" on homework
+    for select using (auth.role() = 'authenticated');
+
+create policy "Students submit homework" on homework_submissions
+    for all using (exists (select 1 from profiles where id = auth.uid() and role = 'student'));
+
+create policy "Parents read child homework" on homework
+    for select using (
+        exists (select 1 from students s join profiles p on s.parent_profile_id = p.id where p.id = auth.uid())
+    );

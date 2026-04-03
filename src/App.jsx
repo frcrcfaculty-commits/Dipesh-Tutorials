@@ -12,6 +12,10 @@ import Notifications from './pages/Notifications';
 import CourseMapping from './pages/CourseMapping';
 import Students from './pages/Students';
 import Analytics from './pages/Analytics';
+import ProgressReport from './pages/ProgressReport.v2';
+import HomeworkTracker from './pages/HomeworkTracker.v2';
+import ParentDigest from './pages/ParentDigest.v2';
+import RealtimeNotifications from './pages/RealtimeNotifications.v2';
 import TestResults from './pages/TestResults';
 import UserManagement from './pages/UserManagement';
 import WalkIn from './pages/WalkIn';
@@ -179,6 +183,10 @@ function AppRoutes() {
             <Route path="/students" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><Students /></Layout></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><Analytics /></Layout></ProtectedRoute>} />
             <Route path="/test-results" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><TestResults /></Layout></ProtectedRoute>} />
+            <Route path="/progress-reports" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><ProgressReport /></Layout></ProtectedRoute>} />
+            <Route path="/homework" element={<ProtectedRoute roles={['admin', 'superadmin', 'student', 'parent']}><Layout><HomeworkTracker /></Layout></ProtectedRoute>} />
+            <Route path="/digest" element={<ProtectedRoute roles={['parent']}><Layout><ParentDigest /></Layout></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><Layout><RealtimeNotifications /></Layout></ProtectedRoute>} />
             <Route path="/walk-in" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><WalkIn /></Layout></ProtectedRoute>} />
             <Route path="/user-management" element={<ProtectedRoute roles={['superadmin']}><Layout><UserManagement /></Layout></ProtectedRoute>} />
             <Route path="/v2" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><DashboardV2 /></Layout></ProtectedRoute>} />

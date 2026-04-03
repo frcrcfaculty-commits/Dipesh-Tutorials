@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import DashboardV2 from './pages/DashboardV2';
 import Attendance from './pages/Attendance';
 import Resources from './pages/Resources';
 import Billing from './pages/Billing';
@@ -14,6 +15,8 @@ import Analytics from './pages/Analytics';
 import TestResults from './pages/TestResults';
 import UserManagement from './pages/UserManagement';
 import WalkIn from './pages/WalkIn';
+import WalkInV2 from './pages/WalkInV2';
+import StudentsV2 from './pages/StudentsV2';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const AuthContext = createContext(null);
@@ -173,6 +176,9 @@ function AppRoutes() {
             <Route path="/test-results" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><TestResults /></Layout></ProtectedRoute>} />
             <Route path="/walk-in" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><WalkIn /></Layout></ProtectedRoute>} />
             <Route path="/user-management" element={<ProtectedRoute roles={['superadmin']}><Layout><UserManagement /></Layout></ProtectedRoute>} />
+            <Route path="/v2" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><DashboardV2 /></Layout></ProtectedRoute>} />
+            <Route path="/students-v2" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><StudentsV2 /></Layout></ProtectedRoute>} />
+            <Route path="/walk-in-v2" element={<ProtectedRoute roles={['admin', 'superadmin']}><Layout><WalkInV2 /></Layout></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

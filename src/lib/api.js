@@ -527,8 +527,33 @@ export async function getDashboardStats() {
         pendingFees: totalDemand - totalCollected,
     };
 }
+export async function startVisitRecord({ studentId, visitType, notes, createdBy }) {
+    const { data: visit, error: vErr } = await supabase
+        .from('walk_in_visits')
+        .insert({ student_id: studentId, visit_type: visitType, notes, created_by: createdBy })
+        .select()
+        .single();
+    if (vErr) throw vErr;
 
-// ─── STUDENT STATS (for PDF reports) ──────────────────────
+    if (notes && notes.trim()) {
+        await supabase.from('walk_in_notes').insert({
+            visit_id: visit.id,
+            note_type: 'general',
+            note_text: notes.trim(),
+            created_by: createdBy,
+        });
+    }
+    return visit;
+}
+
+export async function addVisitNote({ visitId, noteType, noteText, createdBy }) {
+    const { data, error } = await supabase
+        .from('walk_in_notes')
+        .insert({ visit_id: visitId, note_type: noteType, note_text: noteText, created_by: createdBy })
+        .select('*, profiles(name)');
+    if (error) throw error;
+    return data;
+}// ─── STUDENT STATS (for PDF reports) ──────────────────────
 export async function getStudentStats() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -548,41 +573,61 @@ export async function getStudentStats() {
     return stats; // { studentId: { total, present } }
 }
 
-// ─── WALK-IN DASHBOARD ──────────────────────────────────────
+// ─── WALK-IN DASHBOARD ────────────────────────────
 export async function getStudentWalkInData(studentId) {
-    const { data: student, error: sErr } = await supabase
-        .from('students').select('*, standards(name), profiles!students_parent_profile_id_fkey(name, phone, email)')
-        .eq('id', studentId).single();
-    if (sErr || !student) throw sErr || new Error('Student not found');
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const today = now.toISOString().split('T')[0];
+    const date30 = thirtyDaysAgo.toISOString().split('T')[0];
 
-    const stdId = student.standard_id;
-    const classResp = stdId
-        ? await supabase.from('students').select('id').eq('standard_id', stdId).eq('is_active', true)
-        : { data: [] };
-    const classIds = (classResp.data || []).map(s => s.id);
-
-    const [attResult, resultsResult, classAttResult, classMarksResult] = await Promise.all([
-        supabase.from('attendance').select('*').eq('student_id', studentId).order('date', { ascending: false }).limit(60),
-        supabase.from('test_results').select('*, subjects(name), tests(name, test_date)').eq('student_id', studentId).order('created_at', { ascending: false }),
-        classIds.length ? supabase.from('attendance').select('student_id, status').in('student_id', classIds).limit(5000) : Promise.resolve({ data: [] }),
-        classIds.length ? supabase.from('test_results').select('student_id, marks_obtained, max_marks, subjects(name)').in('student_id', classIds).limit(10000) : Promise.resolve({ data: [] }),
+    const [studentResp, attResp, resultsResp, feeResp] = await Promise.all([
+        supabase.from('students').select('*, standards(name)').eq('id', studentId).single(),
+        supabase.from('attendance').select('*').eq('student_id', studentId).gte('date', date30).order('date', { ascending: false }),
+        supabase.from('test_results').select('*, subjects(name), tests(name, test_date)').eq('student_id', studentId).order('created_at', { ascending: false }).limit(60),
+        supabase.from('student_fee_summary').select('*').eq('student_id', studentId).single(),
     ]);
+
+    if (!studentResp.data) throw new Error('Student not found');
+
+    const student = studentResp.data;
+    const classStdId = student.standard_id;
+
+    let classAttResult = { data: [] };
+    if (classStdId) {
+        const { data: stdStudentIds } = await supabase.from('students').select('id').eq('standard_id', classStdId);
+        const ids = (stdStudentIds || []).map(s => s.id);
+        if (ids.length > 0) {
+            const todayAtt = await supabase.from('attendance').select('student_id, status').eq('date', today).in('student_id', ids);
+            classAttResult = todayAtt;
+        }
+    }
+
+    let classMarksResult = { data: [] };
+    if (classStdId && (resultsResp.data || []).length > 0) {
+        const { data: stdStudentIds } = await supabase.from('students').select('id').eq('standard_id', classStdId).eq('is_active', true);
+        const ids = (stdStudentIds || []).map(s => s.id);
+        const testIds = [...new Set((resultsResp.data || []).map(r => r.test_id))];
+        if (ids.length > 0 && testIds.length > 0) {
+            const classM = await supabase.from('test_results').select('marks_obtained, max_marks, subject_id').in('test_id', testIds).in('student_id', ids);
+            classMarksResult = classM;
+        }
+    }
 
     return {
         student,
-        attendance: attResult.data || [],
-        allTestResults: resultsResult.data || [],
+        attendance: attResp.data || [],
+        testResults: resultsResp.data || [],
+        feeSummary: feeResp.data || null,
         classAttendance: classAttResult.data || [],
         classMarks: classMarksResult.data || [],
     };
 }
 
-
-// ─── WALK-IN VISITS ──────────────────────────────────────
+// ─── WALK-IN VISITS ──────────────────────────────
 export async function createWalkInVisit({ studentId, visitedBy, summary }) {
     const { data, error } = await supabase
         .from('walk_in_visits')
-        .insert({ student_id: studentId, visited_by: visitedBy, summary })
+        .insert({ student_id: studentId, visited_by: visitedBy, summary, visit_type: 'walk-in' })
         .select()
         .single();
     if (error) throw error;
@@ -592,29 +637,18 @@ export async function createWalkInVisit({ studentId, visitedBy, summary }) {
 export async function getWalkInVisits(studentId) {
     const { data, error } = await supabase
         .from('walk_in_visits')
-        .select('*, profiles:visited_by(name)')
+        .select('*, profiles(name)')
         .eq('student_id', studentId)
-        .eq('is_active', true)
-        .order('visited_at', { ascending: false });
+        .order('created_at', { ascending: false });
     if (error) throw error;
-    return data;
+    return data || [];
 }
 
-export async function deleteWalkInVisit(visitId) {
-    const { error } = await supabase
-        .from('walk_in_visits')
-        .update({ is_active: false })
-        .eq('id', visitId);
-    if (error) throw error;
-}
-
-// ─── WALK-IN NOTES ───────────────────────────────────────
 export async function addWalkInNote({ visitId, noteText, noteType, createdBy }) {
     const { data, error } = await supabase
         .from('walk_in_notes')
         .insert({ visit_id: visitId, note_text: noteText, note_type: noteType || 'general', created_by: createdBy })
-        .select('*, profiles:created_by(name)')
-        .single();
+        .select('*, profiles(name)');
     if (error) throw error;
     return data;
 }
@@ -622,9 +656,11 @@ export async function addWalkInNote({ visitId, noteText, noteType, createdBy }) 
 export async function getWalkInNotes(visitId) {
     const { data, error } = await supabase
         .from('walk_in_notes')
-        .select('*, profiles:created_by(name)')
+        .select('*, profiles(name)')
         .eq('visit_id', visitId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
     if (error) throw error;
-    return data;
+    return data || [];
 }
+
+

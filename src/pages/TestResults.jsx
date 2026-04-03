@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../App';
-import { getTests, getTestResults, createTest, upsertTestResults, getStandards, getSubjects } from '../lib/api';
-import { FileText, Plus, Loader2 } from 'lucide-react';
+import { getTests, getTestResults, createTest, upsertTestResults, getStandards, getSubjects, bulkUpsertTestResults } from '../lib/api';
+import { FileText, Plus, Loader2, Upload, X } from 'lucide-react';
 import { showToast } from '../utils';
 
 export default function TestResults() {
@@ -18,6 +18,11 @@ export default function TestResults() {
     const [newTest, setNewTest] = useState({ name: '', standard_id: '', test_date: '' });
     const [marksMap, setMarksMap] = useState({});
     const [editingMarks, setEditingMarks] = useState(false);
+    const [showBulkModal, setShowBulkModal] = useState(false);
+    const [bulkFile, setBulkFile] = useState(null);
+    const [bulkSubjectId, setBulkSubjectId] = useState('');
+    const [bulkPreview, setBulkPreview] = useState([]);
+    const [bulkImporting, setBulkImporting] = useState(false);
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
     useEffect(() => { loadAll(); }, []);
@@ -89,10 +94,83 @@ export default function TestResults() {
 
     const gradeColors = { 'A+': '#10B981', 'A': '#22C55E', 'B+': '#3B82F6', 'B': '#6366F1', 'C': '#F59E0B', 'D': '#EF4444', 'F': '#DC2626' };
 
+    const openBulkUpload = () => {
+        if (!selectedTest) { showToast('Select a test first', 'error'); return; }
+        setBulkSubjectId(subjects[0]?.id || '');
+        setBulkFile(null);
+        setBulkPreview([]);
+        setShowBulkModal(true);
+    };
+
+    const handleBulkFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setBulkFile(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const text = ev.target.result;
+            const lines = text.trim().split('\n');
+            if (lines.length < 2) { showToast('CSV must have header + at least 1 data row', 'error'); return; }
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const preview = lines.slice(1, 6).map(line => {
+                const vals = line.split(',').map(v => v.trim().replace(/"/g, ''));
+                const row = {}; headers.forEach((h, i) => { row[h] = vals[i] || ''; });
+                return row;
+            });
+            setBulkPreview(preview);
+        };
+        reader.readAsText(file);
+    };
+
+    const handleBulkImport = async () => {
+        if (!bulkFile || !bulkSubjectId || !selectedTest) { showToast('Select a file, test, and subject', 'error'); return; }
+        setBulkImporting(true);
+        try {
+            const text = await bulkFile.text();
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const records = [];
+            for (const line of lines.slice(1).filter(l => l.trim())) {
+                const vals = line.split(',').map(v => v.trim().replace(/"/g, ''));
+                const row = {}; headers.forEach((h, i) => { row[h] = vals[i] || ''; });
+                const rollNo = parseInt(row.roll_no || row.rollno || row.roll_no || 0);
+                const marks = parseFloat(row.marks || row.marks_obtained || 0);
+                if (!rollNo || isNaN(marks)) continue;
+                const student = results.find(r => r.students?.roll_no === rollNo);
+                if (!student) continue;
+                records.push({
+                    test_id: selectedTest.id,
+                    student_id: student.student_id,
+                    subject_id: parseInt(bulkSubjectId),
+                    marks_obtained: marks,
+                    max_marks: student.max_marks || 100,
+                    entered_by: user.id,
+                });
+            }
+            if (records.length === 0) { showToast('No valid entries found in CSV', 'error'); return; }
+            await bulkUpsertTestResults(records);
+            showToast(`${records.length} results imported!`);
+            setShowBulkModal(false);
+            const updated = await getTestResults({ testId: selectedTest.id });
+            setResults(updated||[]);
+        } catch(err) { showToast('Bulk import failed: ' + err.message, 'error'); }
+        setBulkImporting(false);
+    };
+
+    const testSubjects = useMemo(() => {
+        if (!selectedTest?.standard_id) return subjects;
+        return subjects.filter(s => s.standard_id === selectedTest.standard_id);
+    }, [selectedTest, subjects]);
+
     return (
         <>
             <div className="page-header"><h2>Test Results</h2>
-                {isAdmin && (<button className="btn-primary" onClick={() => setShowCreate(s => !s)}><Plus size={16} /> Create Test</button>)}
+                {isAdmin && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn-primary" onClick={() => setShowCreate(s => !s)}><Plus size={16} /> Create Test</button>
+                        <button className="btn-secondary" onClick={openBulkUpload}><Upload size={16} /> Bulk Upload Results</button>
+                    </div>
+                )}
             </div>
 
             {showCreate && (
@@ -165,6 +243,52 @@ export default function TestResults() {
                     )}
                 </div>
             </div>
+
+            {showBulkModal && (
+                <div className="modal-overlay" onClick={() => setShowBulkModal(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+                        <div className="modal-header"><h3>Bulk Upload Test Results</h3><button className="icon-btn" onClick={() => setShowBulkModal(false)} aria-label="Close"><X size={18} /></button></div>
+                        <div className="modal-body">
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+                                Upload a CSV with <strong>roll_no</strong> and <strong>marks</strong> columns. The subject and test are pre-selected.
+                            </p>
+                            <div style={{ background: 'var(--surface-raised)', padding: '8px 12px', borderRadius: 8, marginBottom: 16, fontSize: '0.85rem' }}>
+                                <div><strong>Test:</strong> {selectedTest?.name} ({selectedTest?.test_date})</div>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label>Subject *</label>
+                                <select value={bulkSubjectId} onChange={e => setBulkSubjectId(e.target.value)}>
+                                    <option value="">Select Subject...</option>
+                                    {(testSubjects||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label>CSV File *</label>
+                                <input type="file" accept=".csv" onChange={handleBulkFileChange} />
+                            </div>
+                            {bulkPreview.length > 0 && (
+                                <div style={{ marginTop: 12 }}>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6 }}>Preview (first 5 rows):</p>
+                                    <div style={{ overflowX: 'auto', fontSize: '0.8rem' }}>
+                                        <table className="data-table" style={{ fontSize: '0.75rem' }}>
+                                            <thead><tr>{Object.keys(bulkPreview[0]).map(k => <th key={k}>{k}</th>)}</tr></thead>
+                                            <tbody>
+                                                {bulkPreview.map((row, i) => <tr key={i}>{Object.values(row).map((v, j) => <td key={j}>{v}</td>)}</tr>)}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 12, marginTop: 20, justifyContent: 'flex-end' }}>
+                                <button className="btn-secondary" onClick={() => setShowBulkModal(false)}>Cancel</button>
+                                <button className="btn-primary" onClick={handleBulkImport} disabled={bulkImporting || !bulkFile || !bulkSubjectId}>
+                                    {bulkImporting ? <><Loader2 size={14} className="spin" /> Importing...</> : 'Import Results'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 .card-spaced {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getStudents, getStandards, addStudent, updateStudent, deleteStudent, getStudentStats, getFeeSummary } from '../lib/api';
-import { Search, Users, Download, Plus, X, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { getStudents, getStandards, addStudent, updateStudent, deleteStudent, getStudentStats, getFeeSummary, bulkUpsertStudents } from '../lib/api';
+import { Search, Users, Download, Plus, X, Edit2, Trash2, Loader2, Upload } from 'lucide-react';
 import { exportCSV, showToast } from '../utils';
 import { SkeletonStatGrid, SkeletonTable } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -33,6 +33,11 @@ export default function Students() {
         parent_name: '', parent_phone: '', parent_email: '',
         date_of_birth: '', address: '', enrollment_date: '',
     });
+    const [showBulkModal, setShowBulkModal] = useState(false);
+    const [bulkStandardId, setBulkStandardId] = useState('');
+    const [bulkFile, setBulkFile] = useState(null);
+    const [bulkPreview, setBulkPreview] = useState([]);
+    const [bulkImporting, setBulkImporting] = useState(false);
 
     useEffect(() => {
         const handler = () => setIsMobile(window.innerWidth < 768);
@@ -161,6 +166,72 @@ export default function Students() {
         showToast('CSV exported!');
     };
 
+    const openBulkUpload = () => {
+        setBulkStandardId(standards[0]?.id || '');
+        setBulkFile(null);
+        setBulkPreview([]);
+        setShowBulkModal(true);
+    };
+
+    const handleBulkFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setBulkFile(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const text = ev.target.result;
+            const lines = text.trim().split('\n');
+            if (lines.length < 2) { showToast('CSV must have header + at least 1 data row', 'error'); return; }
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const required = ['name', 'roll_no'];
+            const missing = required.filter(r => !headers.some(h => h.toLowerCase() === r.toLowerCase()));
+            if (missing.length > 0) { showToast(`Missing columns: ${missing.join(', ')}`, 'error'); setBulkFile(null); return; }
+            const preview = lines.slice(1, 6).map(line => {
+                const vals = line.split(',').map(v => v.trim().replace(/"/g, ''));
+                const row = {}; headers.forEach((h, i) => { row[h] = vals[i] || ''; });
+                return row;
+            });
+            setBulkPreview(preview);
+        };
+        reader.readAsText(file);
+    };
+
+    const handleBulkImport = async () => {
+        if (!bulkFile || !bulkStandardId) { showToast('Select a file and standard', 'error'); return; }
+        setBulkImporting(true);
+        try {
+            const text = await bulkFile.text();
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const students = lines.slice(1).filter(l => l.trim()).map(line => {
+                const vals = line.split(',').map(v => v.trim().replace(/"/g, ''));
+                const row = {}; headers.forEach((h, i) => { row[h] = vals[i] || ''; });
+                return {
+                    name: row.name || row.Name || '',
+                    roll_no: parseInt(row.roll_no || row.Roll_No || row.rollno || 0),
+                    gender: row.gender || row.Gender || 'Male',
+                    standard_id: parseInt(bulkStandardId),
+                    parent_name: row.parent_name || row.Parent_Name || row.parent || '',
+                    parent_phone: row.parent_phone || row.Parent_Phone || row.phone || '',
+                    parent_email: row.parent_email || row.Parent_Email || row.email || '',
+                    date_of_birth: row.date_of_birth || row.Date_of_Birth || row.dob || '',
+                    address: row.address || row.Address || '',
+                    enrollment_date: row.enrollment_date || row.Enrollment_Date || new Date().toISOString().split('T')[0],
+                    is_active: true,
+                };
+            }).filter(s => s.name && s.roll_no);
+            if (students.length === 0) { showToast('No valid students found in CSV', 'error'); return; }
+            await bulkUpsertStudents(students);
+            showToast(`${students.length} students imported!`);
+            setShowBulkModal(false);
+            loadData();
+        } catch (err) {
+            showToast('Bulk import failed: ' + err.message, 'error');
+        } finally {
+            setBulkImporting(false);
+        }
+    };
+
     if (loading) return <><SkeletonStatGrid count={4} /><div style={{ marginTop: 24 }}><SkeletonTable rows={8} cols={5} /></div></>;
 
     return (
@@ -182,6 +253,7 @@ export default function Students() {
                     <div style={{ display: 'flex', gap: 8 }}>
                         <button className="btn-secondary btn-small" onClick={handleExportCSV} aria-label="Export CSV"><Download size={14} /> CSV</button>
                         <button className="btn-secondary btn-small" onClick={handleExportPDF} aria-label="Export PDF"><Download size={14} /> PDF</button>
+                        <button className="btn-secondary btn-small" onClick={openBulkUpload} aria-label="Bulk upload"><Upload size={14} /> Bulk Upload</button>
                         <button className="btn-primary btn-small" onClick={openAdd} aria-label="Add student"><Plus size={14} /> Add Student</button>
                     </div>
                 </div>
@@ -273,6 +345,49 @@ export default function Students() {
                                 <button type="submit" className="btn-primary" disabled={saving}>{saving ? <><Loader2 size={14} className="spin" /> Saving...</> : (editingId ? 'Update' : 'Add Student')}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {showBulkModal && (
+                <div className="modal-overlay" onClick={() => setShowBulkModal(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+                        <div className="modal-header"><h3>Bulk Upload Students</h3><button className="icon-btn" onClick={() => setShowBulkModal(false)} aria-label="Close"><X size={18} /></button></div>
+                        <div className="modal-body">
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+                                Upload a CSV file with columns: <strong>name</strong>, <strong>roll_no</strong> (required), and optionally: gender, parent_name, parent_phone, parent_email, date_of_birth, address, enrollment_date.
+                            </p>
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label>Standard *</label>
+                                <select value={bulkStandardId} onChange={e => setBulkStandardId(e.target.value)}>
+                                    <option value="">Select Standard...</option>
+                                    {standards.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label>CSV File *</label>
+                                <input type="file" accept=".csv" onChange={handleBulkFileChange} />
+                            </div>
+                            {bulkPreview.length > 0 && (
+                                <div style={{ marginTop: 12 }}>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6 }}>Preview (first 5 rows):</p>
+                                    <div style={{ overflowX: 'auto', fontSize: '0.8rem' }}>
+                                        <table className="data-table" style={{ fontSize: '0.75rem' }}>
+                                            <thead><tr>{Object.keys(bulkPreview[0]).map(k => <th key={k}>{k}</th>)}</tr></thead>
+                                            <tbody>
+                                                {bulkPreview.map((row, i) => <tr key={i}>{Object.values(row).map((v, j) => <td key={j}>{v}</td>)}</tr>)}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 12, marginTop: 20, justifyContent: 'flex-end' }}>
+                                <button className="btn-secondary" onClick={() => setShowBulkModal(false)}>Cancel</button>
+                                <button className="btn-primary" onClick={handleBulkImport} disabled={bulkImporting || !bulkFile || !bulkStandardId}>
+                                    {bulkImporting ? <><Loader2 size={14} className="spin" /> Importing...</> : 'Import Students'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

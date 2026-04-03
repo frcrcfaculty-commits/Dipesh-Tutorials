@@ -94,7 +94,8 @@ create table students (
     enrollment_date date default current_date,
     is_active boolean default true,
     created_at timestamptz default now(),
-    updated_at timestamptz default now()
+    updated_at timestamptz default now(),
+    unique(roll_no, standard_id)
 );
 
 -- ─── FEES ──────────────────────────────────────────────────

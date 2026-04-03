@@ -314,6 +314,36 @@ export async function upsertTestResults(results) {
     return data;
 }
 
+// ─── BULK STUDENTS ─────────────────────────────────────────
+export async function bulkUpsertStudents(students) {
+    const { data, error } = await supabase
+        .from('students')
+        .upsert(students, { onConflict: 'roll_no,standard_id' })
+        .select('*, standards(name)');
+    if (error) {
+        console.error('bulkUpsertStudents failed:', error.message, error.details, error.hint, error.code);
+        throw error;
+    }
+    return data;
+}
+
+// ─── BULK TEST RESULTS ─────────────────────────────────────
+export async function bulkUpsertTestResults(results) {
+    const cleanResults = results.map(r => ({
+        ...r,
+        entered_by: r.entered_by || null,
+    }));
+    const { data, error } = await supabase
+        .from('test_results')
+        .upsert(cleanResults, { onConflict: 'test_id,student_id,subject_id' })
+        .select();
+    if (error) {
+        console.error('bulkUpsertTestResults failed:', error.message, error.details, error.hint, error.code);
+        throw error;
+    }
+    return data;
+}
+
 // ─── FEES ──────────────────────────────────────────────────
 export async function getFeeSummary(filters = {}) {
     // Use the view — standardName filters by standard_name (e.g. "11th Science")

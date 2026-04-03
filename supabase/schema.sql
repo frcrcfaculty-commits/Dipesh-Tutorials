@@ -441,3 +441,42 @@ DO $$ BEGIN
     ALTER TABLE fee_payments ADD CONSTRAINT chk_payment_positive CHECK (amount > 0);
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- ─── WALK-IN VISITS (Step 4) ────────────────────────────────
+-- Tracks every walk-in session for a student
+create table if not exists walk_in_visits (
+    id uuid primary key default uuid_generate_v4(),
+    student_id uuid references students(id) on delete cascade not null,
+    visited_at timestamptz default now() not null,
+    visited_by uuid references profiles(id),
+    summary text,
+    is_active boolean default true,
+    created_at timestamptz default now()
+);
+
+-- ─── WALK-IN NOTES ──────────────────────────────────────────
+-- Individual notes taken during a walk-in session
+create table if not exists walk_in_notes (
+    id uuid primary key default uuid_generate_v4(),
+    visit_id uuid references walk_in_visits(id) on delete cascade not null,
+    note_text text not null,
+    note_type text default 'general' check (note_type in ('general','academic','fee','attendance','behavioral','other')),
+    created_by uuid references profiles(id),
+    created_at timestamptz default now()
+);
+
+-- RLS for walk-in tables
+alter table walk_in_visits enable row level security;
+create policy "Admins manage walk_in_visits" on walk_in_visits
+    for all using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin')));
+create policy "Read own visits" on walk_in_visits
+    for select using (visited_by = auth.uid());
+
+alter table walk_in_notes enable row level security;
+create policy "Admins manage walk_in_notes" on walk_in_notes
+    for all using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','superadmin')));
+create policy "Read own notes" on walk_in_notes
+    for select using (created_by = auth.uid());
+
+create index idx_walk_in_visits_student on walk_in_visits(student_id);
+create index idx_walk_in_notes_visit on walk_in_notes(visit_id);

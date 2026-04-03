@@ -576,3 +576,55 @@ export async function getStudentWalkInData(studentId) {
         classMarks: classMarksResult.data || [],
     };
 }
+
+
+// ─── WALK-IN VISITS ──────────────────────────────────────
+export async function createWalkInVisit({ studentId, visitedBy, summary }) {
+    const { data, error } = await supabase
+        .from('walk_in_visits')
+        .insert({ student_id: studentId, visited_by: visitedBy, summary })
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+}
+
+export async function getWalkInVisits(studentId) {
+    const { data, error } = await supabase
+        .from('walk_in_visits')
+        .select('*, profiles:visited_by(name)')
+        .eq('student_id', studentId)
+        .eq('is_active', true)
+        .order('visited_at', { ascending: false });
+    if (error) throw error;
+    return data;
+}
+
+export async function deleteWalkInVisit(visitId) {
+    const { error } = await supabase
+        .from('walk_in_visits')
+        .update({ is_active: false })
+        .eq('id', visitId);
+    if (error) throw error;
+}
+
+// ─── WALK-IN NOTES ───────────────────────────────────────
+export async function addWalkInNote({ visitId, noteText, noteType, createdBy }) {
+    const { data, error } = await supabase
+        .from('walk_in_notes')
+        .insert({ visit_id: visitId, note_text: noteText, note_type: noteType || 'general', created_by: createdBy })
+        .select('*, profiles:created_by(name)')
+        .single();
+    if (error) throw error;
+    return data;
+}
+
+export async function getWalkInNotes(visitId) {
+    const { data, error } = await supabase
+        .from('walk_in_notes')
+        .select('*, profiles:created_by(name)')
+        .eq('visit_id', visitId)
+        .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data;
+}

@@ -4,7 +4,7 @@ import { useAuth } from '../App';
 import { supabase } from '../lib/supabase';
 import {
     LayoutDashboard, Users, CalendarCheck, BookOpen, IndianRupee, Bell, BarChart3,
-    GraduationCap, Settings, LogOut, Menu, X, ChevronRight, Map
+    GraduationCap, Settings, LogOut, Menu, X, ChevronRight, Map, UserSearch
 } from 'lucide-react';
 import { showToast, withTimeout, playNotificationTone } from '../utils';
 
@@ -29,6 +29,7 @@ export default function Layout({ children }) {
             '/resources': 'Resources',
             '/course-mapping': 'Course Mapping',
             '/analytics': 'Analytics',
+            '/walk-in': 'Walk-In',
             '/user-management': 'User Management',
         };
         document.title = `${titles[location.pathname] || 'Dashboard'} — Dipesh Tutorials`;
@@ -89,6 +90,7 @@ export default function Layout({ children }) {
         { path: '/resources', label: 'Resources', icon: BookOpen, roles: ['student', 'admin', 'superadmin'] },
         { path: '/course-mapping', label: 'Course Mapping', icon: Map, roles: ['student', 'admin', 'superadmin'] },
         { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['admin', 'superadmin'] },
+        { path: '/walk-in', label: 'Walk-In', icon: UserSearch, roles: ['admin', 'superadmin'] },
         { path: '/notifications', label: 'Notifications', icon: Bell, dynamicBadge: true, roles: ['admin', 'superadmin', 'student', 'parent'] },
         { path: '/user-management', label: 'Users', icon: Settings, roles: ['superadmin'] },
     ];

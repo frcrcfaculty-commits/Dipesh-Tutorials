@@ -20,7 +20,7 @@ export default function Login() {
         try {
             const result = await login(email, password);
             if (result.success) {
-                navigate('/');
+                setTimeout(() => navigate('/'), 50);
             } else {
                 setError(result.error || 'Login failed. Check your credentials.');
             }

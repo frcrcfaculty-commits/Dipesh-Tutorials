@@ -37,6 +37,7 @@ function AuthProvider({ children }) {
     async function fetchProfile(authUser) {
         if (fetchingRef.current) return;
         fetchingRef.current = true;
+        let aborted = false;
         try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 10000);
@@ -47,6 +48,7 @@ function AuthProvider({ children }) {
                 .abortSignal(controller.signal)
                 .single();
             clearTimeout(timeout);
+            if (aborted) return;
 
             if (error) {
                 console.error('Profile fetch error:', error);
@@ -66,6 +68,7 @@ function AuthProvider({ children }) {
                 localStorage.setItem('dt_user', JSON.stringify(userData));
             }
         } catch (err) {
+            if (err.name === 'AbortError') { aborted = true; return; }
             console.error('Error fetching profile:', err);
         } finally {
             fetchingRef.current = false;
@@ -81,12 +84,15 @@ function AuthProvider({ children }) {
                 if (!session && user) {
                     setUser(null);
                     localStorage.removeItem('dt_user');
-                    navigate('/login');
+                    // Only navigate if we're not already on login
+                    if (window.location.pathname !== '/login') {
+                        window.location.href = '/login';
+                    }
                 }
             } catch (_) {}
         }, 300000);
         return () => clearInterval(interval);
-    }, [user, navigate]);
+    }, [user]);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -107,16 +113,15 @@ function AuthProvider({ children }) {
                     setUser(null);
                     localStorage.removeItem('dt_user');
                     setLoading(false);
-                    navigate('/login');
-                }
-                if (event === 'TOKEN_REFRESHED' && session?.user) {
-                    console.log('Session refreshed');
+                    if (window.location.pathname !== '/login') {
+                        window.location.href = '/login';
+                    }
                 }
             }
         );
 
         return () => subscription.unsubscribe();
-    }, [navigate]);
+    }, []);
 
     const login = async (email, password) => {
         try {
@@ -135,6 +140,7 @@ function AuthProvider({ children }) {
         await supabase.auth.signOut();
         setUser(null);
         localStorage.removeItem('dt_user');
+        window.location.href = '/login';
     };
 
     return (

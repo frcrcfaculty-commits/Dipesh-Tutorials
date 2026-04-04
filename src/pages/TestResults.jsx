@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../App';
 import { getTests, getTestResults, createTest, upsertTestResults, getStandards, getSubjects, bulkUpsertTestResults } from '../lib/api';
-import { FileText, Plus, Loader2, Upload, X } from 'lucide-react';
+import { Plus, Loader2, Upload, X } from 'lucide-react';
 import { showToast } from '../utils';
 
 export default function TestResults() {

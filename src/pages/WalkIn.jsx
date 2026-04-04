@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../App";
 import { getStandards, getStudentWalkInData, createWalkInVisit, getWalkInVisits, addWalkInNote, getWalkInNotes } from "../lib/api";
-import { Search, User, TrendingUp, AlertTriangle, Star, BookOpen, Calendar, IndianRupee, FileText, Loader2, BarChart3, Clock, MessageSquare, Plus, X, Trash2 } from "lucide-react";
+import { Search, User, TrendingUp, AlertTriangle, Star, BookOpen, Calendar, IndianRupee, Loader2, BarChart3, Clock, MessageSquare, Plus, X, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { showToast } from "../utils";
 

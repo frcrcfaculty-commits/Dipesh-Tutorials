@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -200,6 +201,7 @@ export default function App() {
                     <AppRoutes />
                 </ErrorBoundary>
             </AuthProvider>
+            <VercelAnalytics />
         </BrowserRouter>
     );
 }
